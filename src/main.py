@@ -1,7 +1,9 @@
 # kivy
 import kivy
 kivy.require('1.0.9')
+from kivy.lang import Builder
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.camera import Camera
 from kivy.app import App
 from kivy.clock import Clock
 
@@ -62,6 +64,12 @@ class My3D(App):
         Clock.schedule_interval(self.rotate_cube, 0.01)
         return layout
 
-if __name__ == '__main__':
-    My3D().run()
 
+class TestCamera(App):
+
+    def build(self):
+        return Camera(resolution=(1280, 960), play=True)
+
+if __name__ == '__main__':
+    # My3D().run()
+    TestCamera().run()

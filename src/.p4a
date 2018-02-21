@@ -4,3 +4,4 @@
 --bootstrap sdl2
 --requirements python2,kivy,numpy,setuptools,kivy3
 --arch armeabi-v7a
+--permission CAMERA
