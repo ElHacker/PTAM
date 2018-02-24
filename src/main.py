@@ -1,4 +1,3 @@
-__version__ = "0.1"
 # kivy
 import kivy
 kivy.require('1.0.9')
