@@ -1,11 +1,13 @@
+__version__ = "0.1"
 # kivy
 import kivy
 kivy.require('1.0.9')
 from kivy.lang import Builder
 from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.camera import Camera
+from ui_camera.camera import Camera
 from kivy.app import App
 from kivy.clock import Clock
+from jnius import autoclass, java_method
 
 # kivy3
 from kivy3 import Renderer, Scene
@@ -14,6 +16,8 @@ from kivy3 import PerspectiveCamera
 # geometry
 from kivy3.extras.geometries import BoxGeometry
 from kivy3 import Material, Mesh
+
+HelloWorld = autoclass('org.cs231a.ptam.HelloWorld')
 
 # Renders a simple cube.
 class My3D(App):
@@ -68,6 +72,8 @@ class My3D(App):
 class TestCamera(App):
 
     def build(self):
+        hello = HelloWorld()
+        hello.sayHello()
         return Camera(resolution=(1280, 960), play=True)
 
 if __name__ == '__main__':
