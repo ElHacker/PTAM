@@ -6,7 +6,7 @@ from kivy.uix.floatlayout import FloatLayout
 from ui_camera.camera import Camera
 from kivy.app import App
 from kivy.clock import Clock
-from jnius import autoclass, java_method
+from jnius import autoclass, java_method, PythonJavaClass
 
 # kivy3
 from kivy3 import Renderer, Scene
@@ -67,12 +67,23 @@ class My3D(App):
         Clock.schedule_interval(self.rotate_cube, 0.01)
         return layout
 
+class PythonMessageProcessor(PythonJavaClass):
+    __javainterfaces__ = ('org.cs231a.ptam.HelloWorld$MessageProcessor', )
+    __javacontext__ = 'app'
+
+    def __init__(self):
+        super(PythonMessageProcessor, self).__init__()
+
+    @java_method('(Ljava/lang/String;)Ljava/lang/String;')
+    def processMessage(self, message):
+        return message + " Python"
 
 class TestCamera(App):
 
     def build(self):
+        processor = PythonMessageProcessor()
         hello = HelloWorld()
-        hello.sayHello()
+        hello.sayHello(processor)
         return Camera(resolution=(1280, 960), play=True)
 
 if __name__ == '__main__':
