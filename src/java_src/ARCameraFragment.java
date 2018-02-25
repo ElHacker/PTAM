@@ -4,6 +4,8 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.Fragment;
+import android.app.DialogFragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
@@ -30,7 +32,6 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.DialogFragment;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.util.Size;
@@ -39,6 +40,7 @@ import android.view.LayoutInflater;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.ViewGroup;
+import android.view.View;
 import android.widget.Toast;
 
 import java.io.File;
@@ -53,7 +55,7 @@ import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-public class ARCameraActivity extends Activity implements TextView.SurfaceTextureListener {
+public class ARCameraFragment extends Fragment {
 
     /**
      * Conversion from screen rotation to JPEG orientation.
@@ -109,7 +111,38 @@ public class ARCameraActivity extends Activity implements TextView.SurfaceTextur
      */
     private static final int MAX_PREVIEW_HEIGHT = 1080;
 
+    /**
+     * {@link TextureView.SurfaceTextureListener} handles several lifecycle events on a
+     * {@link TextureView}.
+     */
+    private final TextureView.SurfaceTextureListener mSurfaceTextureListener
+            = new TextureView.SurfaceTextureListener() {
 
+        @Override
+        public void onSurfaceTextureAvailable(SurfaceTexture texture, int width, int height) {
+            System.out.println("TEXTURE AVAILABLE");
+            System.out.println("Width: ");
+            System.out.println(width);
+            System.out.println("Height: ");
+            System.out.println(height);
+            openCamera(width, height);
+        }
+
+        @Override
+        public void onSurfaceTextureSizeChanged(SurfaceTexture texture, int width, int height) {
+            configureTransform(width, height);
+        }
+
+        @Override
+        public boolean onSurfaceTextureDestroyed(SurfaceTexture texture) {
+            return true;
+        }
+
+        @Override
+        public void onSurfaceTextureUpdated(SurfaceTexture texture) {
+        }
+
+    };
 
     /**
      * ID of the current {@link CameraDevice}.
@@ -120,6 +153,8 @@ public class ARCameraActivity extends Activity implements TextView.SurfaceTextur
      * An {@link AutoFitTextureView} for camera preview.
      */
     private AutoFitTextureView mTextureView;
+
+    private Context mContext;
 
     /**
      * A {@link CameraCaptureSession } for camera preview.
@@ -373,11 +408,21 @@ public class ARCameraActivity extends Activity implements TextView.SurfaceTextur
         return new ARCameraFragment();
     }
 
-    //@Override
-    //public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             //Bundle savedInstanceState) {
-        //return inflater.inflate(R.layout.fragment_camera2_basic, container, false);
-    //}
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+        System.out.println("onAttach");
+        mContext = (Context) activity;
+    }
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        mTextureView = new AutoFitTextureView(mContext);
+        System.out.println("onCreateView");
+        return mTextureView;
+    }
+
 
     //@Override
     //public void onViewCreated(final View view, Bundle savedInstanceState) {
@@ -385,58 +430,34 @@ public class ARCameraActivity extends Activity implements TextView.SurfaceTextur
     //}
 
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        //mFile = new File(this.getExternalFilesDir(null), "pic.jpg");
-        mTextureView = (AutoFitTextureView) (new TextureView(this));
-        mTextureView.setSurfaceTextureListener(this);
-
-        setContentView(mTextureView);
+    public void onActivityCreated(Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+        System.out.println("onActivityCreated");
+        mFile = new File(getActivity().getExternalFilesDir(null), "pic.jpg");
     }
 
     @Override
-    public void onSurfaceTextureAvailable(SurfaceTexture texture, int width, int height) {
-        openCamera(width, height);
+    public void onResume() {
+        super.onResume();
+        startBackgroundThread();
+
+        // When the screen is turned off and turned back on, the SurfaceTexture is already
+        // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
+        // a camera and start preview from here (otherwise, we wait until the surface is ready in
+        // the SurfaceTextureListener).
+        if (mTextureView.isAvailable()) {
+            openCamera(mTextureView.getWidth(), mTextureView.getHeight());
+        } else {
+            mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
+        }
     }
 
     @Override
-    public void onSurfaceTextureSizeChanged(SurfaceTexture texture, int width, int height) {
-        configureTransform(width, height);
-    }
-
-    @Override
-    public boolean onSurfaceTextureDestroyed(SurfaceTexture texture) {
+    public void onPause() {
         closeCamera();
         stopBackgroundThread();
-        return true;
+        super.onPause();
     }
-
-    @Override
-    public void onSurfaceTextureUpdated(SurfaceTexture texture) {
-    }
-
-    //@Override
-    //public void onResume() {
-        //super.onResume();
-        //startBackgroundThread();
-
-        //// When the screen is turned off and turned back on, the SurfaceTexture is already
-        //// available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
-        //// a camera and start preview from here (otherwise, we wait until the surface is ready in
-        //// the SurfaceTextureListener).
-        //if (mTextureView.isAvailable()) {
-            //openCamera(mTextureView.getWidth(), mTextureView.getHeight());
-        //} else {
-            //mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
-        //}
-    //}
-
-    //@Override
-    //public void onPause() {
-        //closeCamera();
-        //stopBackgroundThread();
-        //super.onPause();
-    //}
 
     //private void requestCameraPermission() {
         //if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
@@ -951,10 +972,6 @@ public class ARCameraActivity extends Activity implements TextView.SurfaceTextur
                     .create();
         }
 
-    }
-
-    public Size getPreviewSize() {
-      return this.mPreviewSize;
     }
 
     /**
