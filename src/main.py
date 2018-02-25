@@ -84,7 +84,8 @@ class TestCamera(App):
         processor = PythonMessageProcessor()
         hello = HelloWorld()
         hello.sayHello(processor)
-        return Camera(resolution=(1280, 960), play=True)
+        return ARCamera()
+        # return Camera(resolution=(1280, 960), play=True)
 
 if __name__ == '__main__':
     # My3D().run()

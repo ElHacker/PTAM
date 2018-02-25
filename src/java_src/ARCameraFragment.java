@@ -31,7 +31,6 @@ import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.DialogFragment;
-import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.util.Size;
@@ -39,7 +38,6 @@ import android.util.SparseIntArray;
 import android.view.LayoutInflater;
 import android.view.Surface;
 import android.view.TextureView;
-import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
@@ -55,14 +53,13 @@ import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-public class ARCameraFragment extends Fragment
-        implements View.OnClickListener, ActivityCompat.OnRequestPermissionsResultCallback {
+public class ARCameraActivity extends Activity implements TextView.SurfaceTextureListener {
 
     /**
      * Conversion from screen rotation to JPEG orientation.
      */
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
-    private static final int REQUEST_CAMERA_PERMISSION = 1;
+    //private static final int REQUEST_CAMERA_PERMISSION = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
 
     static {
@@ -112,33 +109,7 @@ public class ARCameraFragment extends Fragment
      */
     private static final int MAX_PREVIEW_HEIGHT = 1080;
 
-    /**
-     * {@link TextureView.SurfaceTextureListener} handles several lifecycle events on a
-     * {@link TextureView}.
-     */
-    private final TextureView.SurfaceTextureListener mSurfaceTextureListener
-            = new TextureView.SurfaceTextureListener() {
 
-        @Override
-        public void onSurfaceTextureAvailable(SurfaceTexture texture, int width, int height) {
-            openCamera(width, height);
-        }
-
-        @Override
-        public void onSurfaceTextureSizeChanged(SurfaceTexture texture, int width, int height) {
-            configureTransform(width, height);
-        }
-
-        @Override
-        public boolean onSurfaceTextureDestroyed(SurfaceTexture texture) {
-            return true;
-        }
-
-        @Override
-        public void onSurfaceTextureUpdated(SurfaceTexture texture) {
-        }
-
-    };
 
     /**
      * ID of the current {@link CameraDevice}.
@@ -402,68 +373,91 @@ public class ARCameraFragment extends Fragment
         return new ARCameraFragment();
     }
 
+    //@Override
+    //public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             //Bundle savedInstanceState) {
+        //return inflater.inflate(R.layout.fragment_camera2_basic, container, false);
+    //}
+
+    //@Override
+    //public void onViewCreated(final View view, Bundle savedInstanceState) {
+        //mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
+    //}
+
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_camera2_basic, container, false);
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        //mFile = new File(this.getExternalFilesDir(null), "pic.jpg");
+        mTextureView = (AutoFitTextureView) (new TextureView(this));
+        mTextureView.setSurfaceTextureListener(this);
+
+        setContentView(mTextureView);
     }
 
     @Override
-    public void onViewCreated(final View view, Bundle savedInstanceState) {
-        view.findViewById(R.id.picture).setOnClickListener(this);
-        view.findViewById(R.id.info).setOnClickListener(this);
-        mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
+    public void onSurfaceTextureAvailable(SurfaceTexture texture, int width, int height) {
+        openCamera(width, height);
     }
 
     @Override
-    public void onActivityCreated(Bundle savedInstanceState) {
-        super.onActivityCreated(savedInstanceState);
-        mFile = new File(getActivity().getExternalFilesDir(null), "pic.jpg");
+    public void onSurfaceTextureSizeChanged(SurfaceTexture texture, int width, int height) {
+        configureTransform(width, height);
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
-        startBackgroundThread();
-
-        // When the screen is turned off and turned back on, the SurfaceTexture is already
-        // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
-        // a camera and start preview from here (otherwise, we wait until the surface is ready in
-        // the SurfaceTextureListener).
-        if (mTextureView.isAvailable()) {
-            openCamera(mTextureView.getWidth(), mTextureView.getHeight());
-        } else {
-            mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
-        }
-    }
-
-    @Override
-    public void onPause() {
+    public boolean onSurfaceTextureDestroyed(SurfaceTexture texture) {
         closeCamera();
         stopBackgroundThread();
-        super.onPause();
-    }
-
-    private void requestCameraPermission() {
-        if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
-            new ConfirmationDialog().show(getChildFragmentManager(), FRAGMENT_DIALOG);
-        } else {
-            requestPermissions(new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
-        }
+        return true;
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        if (requestCode == REQUEST_CAMERA_PERMISSION) {
-            if (grantResults.length != 1 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-                ErrorDialog.newInstance(getString(R.string.request_permission))
-                        .show(getChildFragmentManager(), FRAGMENT_DIALOG);
-            }
-        } else {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        }
+    public void onSurfaceTextureUpdated(SurfaceTexture texture) {
     }
+
+    //@Override
+    //public void onResume() {
+        //super.onResume();
+        //startBackgroundThread();
+
+        //// When the screen is turned off and turned back on, the SurfaceTexture is already
+        //// available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
+        //// a camera and start preview from here (otherwise, we wait until the surface is ready in
+        //// the SurfaceTextureListener).
+        //if (mTextureView.isAvailable()) {
+            //openCamera(mTextureView.getWidth(), mTextureView.getHeight());
+        //} else {
+            //mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
+        //}
+    //}
+
+    //@Override
+    //public void onPause() {
+        //closeCamera();
+        //stopBackgroundThread();
+        //super.onPause();
+    //}
+
+    //private void requestCameraPermission() {
+        //if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
+            //new ConfirmationDialog().show(getChildFragmentManager(), FRAGMENT_DIALOG);
+        //} else {
+            //requestPermissions(new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
+        //}
+    //}
+
+    //@Override
+    //public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           //@NonNull int[] grantResults) {
+        //if (requestCode == REQUEST_CAMERA_PERMISSION) {
+            //if (grantResults.length != 1 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                //ErrorDialog.newInstance("This sample needs permission")
+                        //.show(getChildFragmentManager(), FRAGMENT_DIALOG);
+            //}
+        //} else {
+            //super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        //}
+    //}
 
     /**
      * Sets up member variables related to camera.
@@ -575,7 +569,7 @@ public class ARCameraFragment extends Fragment
         } catch (NullPointerException e) {
             // Currently an NPE is thrown when the Camera2API is used but not supported on the
             // device this code runs.
-            ErrorDialog.newInstance(getString(R.string.camera_error))
+            ErrorDialog.newInstance("This device doesn't support Camera2 API.")
                     .show(getChildFragmentManager(), FRAGMENT_DIALOG);
         }
     }
@@ -584,11 +578,11 @@ public class ARCameraFragment extends Fragment
      * Opens the camera specified by {@link Camera2BasicFragment#mCameraId}.
      */
     private void openCamera(int width, int height) {
-        if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA)
-                != PackageManager.PERMISSION_GRANTED) {
-            requestCameraPermission();
-            return;
-        }
+        //if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA)
+                //!= PackageManager.PERMISSION_GRANTED) {
+            //requestCameraPermission();
+            //return;
+        //}
         setUpCameraOutputs(width, height);
         configureTransform(width, height);
         Activity activity = getActivity();
@@ -746,12 +740,6 @@ public class ARCameraFragment extends Fragment
         mTextureView.setTransform(matrix);
     }
 
-    /**
-     * Initiate a still image capture.
-     */
-    private void takePicture() {
-        lockFocus();
-    }
 
     /**
      * Lock the focus as the first step for a still image capture.
@@ -868,26 +856,6 @@ public class ARCameraFragment extends Fragment
         }
     }
 
-    @Override
-    public void onClick(View view) {
-        switch (view.getId()) {
-            case R.id.picture: {
-                takePicture();
-                break;
-            }
-            case R.id.info: {
-                Activity activity = getActivity();
-                if (null != activity) {
-                    new AlertDialog.Builder(activity)
-                            .setMessage(R.string.intro_message)
-                            .setPositiveButton(android.R.string.ok, null)
-                            .show();
-                }
-                break;
-            }
-        }
-    }
-
     private void setAutoFlash(CaptureRequest.Builder requestBuilder) {
         if (mFlashSupported) {
             requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
@@ -973,8 +941,8 @@ public class ARCameraFragment extends Fragment
         public Dialog onCreateDialog(Bundle savedInstanceState) {
             final Activity activity = getActivity();
             return new AlertDialog.Builder(activity)
-                    .setMessage(getArguments().getString(ARG_MESSAGE))
-                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                    .setMessage("Error")
+                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialogInterface, int i) {
                             activity.finish();
@@ -985,36 +953,40 @@ public class ARCameraFragment extends Fragment
 
     }
 
+    public Size getPreviewSize() {
+      return this.mPreviewSize;
+    }
+
     /**
      * Shows OK/Cancel confirmation dialog about camera permission.
      */
-    public static class ConfirmationDialog extends DialogFragment {
+    //public static class ConfirmationDialog extends DialogFragment {
 
-        @NonNull
-        @Override
-        public Dialog onCreateDialog(Bundle savedInstanceState) {
-            final Fragment parent = getParentFragment();
-            return new AlertDialog.Builder(getActivity())
-                    .setMessage(R.string.request_permission)
-                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            parent.requestPermissions(new String[]{Manifest.permission.CAMERA},
-                                    REQUEST_CAMERA_PERMISSION);
-                        }
-                    })
-                    .setNegativeButton(android.R.string.cancel,
-                            new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    Activity activity = parent.getActivity();
-                                    if (activity != null) {
-                                        activity.finish();
-                                    }
-                                }
-                            })
-                    .create();
-        }
-    }
+        //@NonNull
+        //@Override
+        //public Dialog onCreateDialog(Bundle savedInstanceState) {
+            //final Fragment parent = getParentFragment();
+            //return new AlertDialog.Builder(getActivity())
+                    //.setMessage("This sample needs camera permission")
+                    //.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        //@Override
+                        //public void onClick(DialogInterface dialog, int which) {
+                            //parent.requestPermissions(new String[]{Manifest.permission.CAMERA},
+                                    //REQUEST_CAMERA_PERMISSION);
+                        //}
+                    //})
+                    //.setNegativeButton("Cancel",
+                            //new DialogInterface.OnClickListener() {
+                                //@Override
+                                //public void onClick(DialogInterface dialog, int which) {
+                                    //Activity activity = parent.getActivity();
+                                    //if (activity != null) {
+                                        //activity.finish();
+                                    //}
+                                //}
+                            //})
+                    //.create();
+        //}
+    //}
 
 }

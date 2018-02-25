@@ -1,2 +1,3 @@
+/home/elhacker/Developer/Android/PTAM/src/java_src/AutoFitTextureView.java
 /home/elhacker/Developer/Android/PTAM/src/java_src/ARCameraFragment.java
 /home/elhacker/Developer/Android/PTAM/src/java_src/HelloWorld.java
