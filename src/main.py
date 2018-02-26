@@ -5,6 +5,7 @@ from kivy.lang import Builder
 from kivy.uix.floatlayout import FloatLayout
 from kivy.app import App
 from kivy.clock import Clock
+from kivy.logger import Logger
 from jnius import autoclass, java_method, cast, PythonJavaClass
 from android.runnable import run_on_ui_thread
 
@@ -15,6 +16,10 @@ from kivy3 import PerspectiveCamera
 # geometry
 from kivy3.extras.geometries import BoxGeometry
 from kivy3 import Material, Mesh
+
+# numpy
+import numpy as np
+
 
 PythonActivity = autoclass('org.kivy.android.PythonActivity')
 LinearLayout = autoclass('android.widget.LinearLayout')
@@ -81,6 +86,47 @@ class PythonMessageProcessor(PythonJavaClass):
     def processMessage(self, message):
         return message + " Python"
 
+class PythonARCameraImageProcessor(PythonJavaClass):
+    __javainterfaces__ = ('org.cs231a.ptam.ARCameraImageProcessor', )
+    __javacontext__ = 'app'
+
+    def __init_(self):
+        super(PythonARCameraImageProcessor, self).__init__()
+
+    @java_method('([F)V')
+    def constructIntrinsicCalibrationMatrix(self, intrinsicCalibrationParameters):
+        f_x = 0
+        f_y = 1
+        c_x = 2
+        c_y = 3
+        s = 4
+        c_params = intrinsicCalibrationParameters
+        if c_params is None:
+            # If the intrinsic calibration parameters are null it means that the
+            # camera doesn't have support for that API.
+            Logger.info("Camera doesn't support native Internal Calibration Parameters")
+            return
+        K = np.array([
+            [c_params[f_x], c_params[s], c_params[c_x]],
+            [0, c_params[f_y], c_params[c_y]],
+            [0, 0, 1]
+        ])
+        Logger.info("The Internal Calibration Matrix:")
+        Logger.info(K)
+
+    @java_method('(FII)V')
+    def constructIntrinsicCalibrationMatrixApproximation(self, focalLength, image_width, image_height):
+        c_x = image_width / 2
+        c_y = image_height / 2
+        f_x = f_y = focalLength
+        K = np.array([
+            [f_x, 0, c_x],
+            [0, f_y, c_y],
+            [0, 0, 1]
+        ])
+        Logger.info("The approximated Internal Calibration Matrix:")
+        Logger.info(K)
+
 class TestCamera(App):
 
     def on_start(self):
@@ -95,8 +141,10 @@ class TestCamera(App):
         linearLayout = LinearLayout(currentActivity.getApplicationContext())
         linearLayout.setOrientation(LinearLayout.HORIZONTAL)
         linearLayout.setId(linearLayoutId)
-        cameraFragment = ARCameraFragment.newInstance()
-        fragmentTransaction.add(linearLayoutId, cameraFragment, 'ARCameraFragment')
+        # Pass in the camera image processor to the camera fragment.
+        imageProcessor = PythonARCameraImageProcessor()
+        self.cameraFragment = ARCameraFragment.newInstance(imageProcessor)
+        fragmentTransaction.add(linearLayoutId, self.cameraFragment, 'ARCameraFragment')
         fragmentTransaction.commit()
         currentActivity.setContentView(linearLayout)
 
