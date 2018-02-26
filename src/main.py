@@ -3,7 +3,6 @@ import kivy
 kivy.require('1.0.9')
 from kivy.lang import Builder
 from kivy.uix.floatlayout import FloatLayout
-from ui_camera.camera import Camera
 from kivy.app import App
 from kivy.clock import Clock
 from jnius import autoclass, java_method, cast, PythonJavaClass
@@ -105,7 +104,6 @@ class TestCamera(App):
         processor = PythonMessageProcessor()
         hello = HelloWorld()
         hello.sayHello(processor)
-        # return Camera(resolution=(1280, 960), play=True)
         layout = FloatLayout()
         return layout
 
