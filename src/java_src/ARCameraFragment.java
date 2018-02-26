@@ -120,11 +120,6 @@ public class ARCameraFragment extends Fragment {
 
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture texture, int width, int height) {
-            System.out.println("TEXTURE AVAILABLE");
-            System.out.println("Width: ");
-            System.out.println(width);
-            System.out.println("Height: ");
-            System.out.println(height);
             openCamera(width, height);
         }
 
@@ -155,6 +150,8 @@ public class ARCameraFragment extends Fragment {
     private AutoFitTextureView mTextureView;
 
     private Context mContext;
+
+    private ARCameraImageProcessor mARCameraImageProcessor;
 
     /**
      * A {@link CameraCaptureSession } for camera preview.
@@ -404,8 +401,12 @@ public class ARCameraFragment extends Fragment {
         }
     }
 
-    public static ARCameraFragment newInstance() {
-        return new ARCameraFragment();
+    public static ARCameraFragment newInstance(ARCameraImageProcessor imageProcessor) {
+        return new ARCameraFragment(imageProcessor);
+    }
+
+    private ARCameraFragment(ARCameraImageProcessor imageProcessor) {
+      mARCameraImageProcessor = imageProcessor;
     }
 
     @Override
@@ -596,6 +597,42 @@ public class ARCameraFragment extends Fragment {
     }
 
     /**
+     * Grabs a reference to the intrinsic calibration parameters.
+     * [f_x, f_y, c_x, c_y, s]
+     * f_x, f_y are the focal lengths in x and y axis.
+     * c_x, c_y represent the coordinates of the center image point.
+     * s represents skewness.
+     *
+     * API reference:
+     * https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics.html#LENS_INTRINSIC_CALIBRATION
+     */
+    private void constructIntrinsicCalibrationParameters() {
+      try {
+        Activity activity = getActivity();
+        CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
+        CameraCharacteristics characteristics = manager.getCameraCharacteristics(mCameraId);
+        float[] intrinsicCalibration = characteristics.get(CameraCharacteristics.LENS_INTRINSIC_CALIBRATION);
+        if (intrinsicCalibration != null) {
+          mARCameraImageProcessor.constructIntrinsicCalibrationMatrix(intrinsicCalibration);
+        } else {
+          // Fallback to using the focal length.
+          float[] availableFocalLengths =
+            characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+          mARCameraImageProcessor.constructIntrinsicCalibrationMatrixApproximation(
+                availableFocalLengths[0],
+                mPreviewSize.getWidth(),
+                mPreviewSize.getHeight());
+        }
+      } catch (CameraAccessException e) {
+          e.printStackTrace();
+      }
+    }
+
+    private void startImageProcessingPipeline() {
+        constructIntrinsicCalibrationParameters();
+    }
+
+    /**
      * Opens the camera specified by {@link Camera2BasicFragment#mCameraId}.
      */
     private void openCamera(int width, int height) {
@@ -613,6 +650,7 @@ public class ARCameraFragment extends Fragment {
                 throw new RuntimeException("Time out waiting to lock camera opening.");
             }
             manager.openCamera(mCameraId, mStateCallback, mBackgroundHandler);
+            startImageProcessingPipeline();
         } catch (CameraAccessException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
