@@ -7,6 +7,7 @@ from ui_camera.camera import Camera
 from kivy.app import App
 from kivy.clock import Clock
 from jnius import autoclass, java_method, cast, PythonJavaClass
+from android.runnable import run_on_ui_thread
 
 # kivy3
 from kivy3 import Renderer, Scene
@@ -16,7 +17,6 @@ from kivy3 import PerspectiveCamera
 from kivy3.extras.geometries import BoxGeometry
 from kivy3 import Material, Mesh
 
-print("WTF")
 PythonActivity = autoclass('org.kivy.android.PythonActivity')
 LinearLayout = autoclass('android.widget.LinearLayout')
 ARCameraFragment = autoclass('org.cs231a.ptam.ARCameraFragment')
@@ -85,18 +85,21 @@ class PythonMessageProcessor(PythonJavaClass):
 class TestCamera(App):
 
     def on_start(self):
+        Clock.schedule_once(self.create_view, 0)
+
+    @run_on_ui_thread
+    def create_view(self, *args):
         currentActivity = cast('android.app.Activity', PythonActivity.mActivity)
         fragmentManager = currentActivity.getFragmentManager()
         fragmentTransaction = fragmentManager.beginTransaction()
         linearLayoutId = 12345
-        linearLayout = LinearLayout(currentActivity.getContext())
+        linearLayout = LinearLayout(currentActivity.getApplicationContext())
         linearLayout.setOrientation(LinearLayout.HORIZONTAL)
         linearLayout.setId(linearLayoutId)
         cameraFragment = ARCameraFragment.newInstance()
         fragmentTransaction.add(linearLayoutId, cameraFragment, 'ARCameraFragment')
         fragmentTransaction.commit()
         currentActivity.setContentView(linearLayout)
-
 
     def build(self):
         processor = PythonMessageProcessor()
@@ -105,8 +108,6 @@ class TestCamera(App):
         # return Camera(resolution=(1280, 960), play=True)
         layout = FloatLayout()
         return layout
-
-class ARCameraWidget(Widget):
 
 
 if __name__ == '__main__':
