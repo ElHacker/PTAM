@@ -1,9 +1,12 @@
 # kivy
 import kivy
 kivy.require('1.0.9')
+from kivy.lang import Builder
 from kivy.uix.floatlayout import FloatLayout
 from kivy.app import App
 from kivy.clock import Clock
+from jnius import autoclass, java_method, cast, PythonJavaClass
+from android.runnable import run_on_ui_thread
 
 # kivy3
 from kivy3 import Renderer, Scene
@@ -12,6 +15,11 @@ from kivy3 import PerspectiveCamera
 # geometry
 from kivy3.extras.geometries import BoxGeometry
 from kivy3 import Material, Mesh
+
+PythonActivity = autoclass('org.kivy.android.PythonActivity')
+LinearLayout = autoclass('android.widget.LinearLayout')
+ARCameraFragment = autoclass('org.cs231a.ptam.ARCameraFragment')
+HelloWorld = autoclass('org.cs231a.ptam.HelloWorld')
 
 # Renders a simple cube.
 class My3D(App):
@@ -62,6 +70,44 @@ class My3D(App):
         Clock.schedule_interval(self.rotate_cube, 0.01)
         return layout
 
-if __name__ == '__main__':
-    My3D().run()
+class PythonMessageProcessor(PythonJavaClass):
+    __javainterfaces__ = ('org.cs231a.ptam.HelloWorld$MessageProcessor', )
+    __javacontext__ = 'app'
 
+    def __init__(self):
+        super(PythonMessageProcessor, self).__init__()
+
+    @java_method('(Ljava/lang/String;)Ljava/lang/String;')
+    def processMessage(self, message):
+        return message + " Python"
+
+class TestCamera(App):
+
+    def on_start(self):
+        Clock.schedule_once(self.create_view, 0)
+
+    @run_on_ui_thread
+    def create_view(self, *args):
+        currentActivity = cast('android.app.Activity', PythonActivity.mActivity)
+        fragmentManager = currentActivity.getFragmentManager()
+        fragmentTransaction = fragmentManager.beginTransaction()
+        linearLayoutId = 12345
+        linearLayout = LinearLayout(currentActivity.getApplicationContext())
+        linearLayout.setOrientation(LinearLayout.HORIZONTAL)
+        linearLayout.setId(linearLayoutId)
+        cameraFragment = ARCameraFragment.newInstance()
+        fragmentTransaction.add(linearLayoutId, cameraFragment, 'ARCameraFragment')
+        fragmentTransaction.commit()
+        currentActivity.setContentView(linearLayout)
+
+    def build(self):
+        processor = PythonMessageProcessor()
+        hello = HelloWorld()
+        hello.sayHello(processor)
+        layout = FloatLayout()
+        return layout
+
+
+if __name__ == '__main__':
+    # My3D().run()
+    TestCamera().run()

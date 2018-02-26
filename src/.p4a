@@ -2,5 +2,12 @@
 --name "PTAM"
 --version 0.1
 --bootstrap sdl2
---requirements python2,kivy,numpy,setuptools,kivy3
+--requirements python2,kivy,numpy,setuptools,kivy3,pyjnius,android
 --arch armeabi-v7a
+--permission CAMERA
+--add-source ~/Developer/Android/PTAM/src/java_src:HelloWorld.java
+--add-jar ~/Android/Sdk/extras/android/m2repository/com/android/support/support-v4/19.0.1/support-v4-19.0.1.jar
+--add-jar ~/Android/Sdk/extras/android/m2repository/com/android/support/support-annotations/25.3.0/support-annotations-25.3.0.jar
+--add-jar ~/Android/Sdk/extras/android/m2repository/com/android/support/support-compat/25.3.0/support-compat-25.3.0-sources.jar
+--add-jar ~/Android/Sdk/extras/android/m2repository/com/android/support/support-fragment/25.3.1/support-fragment-25.3.1-sources.jar
+--add-jar ~/Android/Sdk/extras/android/m2repository/com/android/support/support-media-compat/25.3.1/support-media-compat-25.3.1-sources.jar
