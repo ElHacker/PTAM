@@ -10,6 +10,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Point;
@@ -135,6 +136,27 @@ public class ARCameraFragment extends Fragment {
 
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture texture) {
+          //int expectedImageWidth = MAX_PREVIEW_WIDTH;
+          //int expectedImageHeight = MAX_PREVIEW_HEIGHT;
+          //Bitmap bitmap = mTextureView.getBitmap(expectedImageWidth, expectedImageHeight);
+          //for (int i = 0; i < bitmap.getWidth(); i++) {
+            //for (int j = 0; j < bitmap.getHeight(); j++) {
+              //int pixel = bitmap.getPixel(i, j);
+              //// Decode the pixel in color ARGB componends.
+              //int A = (pixel >> 24) & 0xff;
+              //int R = (pixel >> 16) & 0xff;
+              //int G = (pixel >>  8) & 0xff;
+              //int B = (pixel      ) & 0xff;
+              //if (R > 128) {
+                //R = 255;
+              //} else {
+                //R = 0;
+              //}
+              //// Encode the new pixel color.
+              //int newPixel = (A & 0xff) << 24 | (R & 0xff) << 16 | (G & 0xff) << 8 | (B & 0xff);
+              //bitmap.setPixel(i, j, pixel);
+            //}
+          //}
         }
 
     };
@@ -420,7 +442,6 @@ public class ARCameraFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         mTextureView = new AutoFitTextureView(mContext);
-        System.out.println("onCreateView");
         return mTextureView;
     }
 
@@ -433,7 +454,6 @@ public class ARCameraFragment extends Fragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        System.out.println("onActivityCreated");
         mFile = new File(getActivity().getExternalFilesDir(null), "pic.jpg");
     }
 

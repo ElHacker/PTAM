@@ -23,6 +23,7 @@ import numpy as np
 
 PythonActivity = autoclass('org.kivy.android.PythonActivity')
 LinearLayout = autoclass('android.widget.LinearLayout')
+AugmentationLinearLayout = autoclass('org.cs231a.ptam.AugmentationLinearLayout')
 ARCameraFragment = autoclass('org.cs231a.ptam.ARCameraFragment')
 HelloWorld = autoclass('org.cs231a.ptam.HelloWorld')
 
@@ -138,7 +139,7 @@ class TestCamera(App):
         fragmentManager = currentActivity.getFragmentManager()
         fragmentTransaction = fragmentManager.beginTransaction()
         linearLayoutId = 12345
-        linearLayout = LinearLayout(currentActivity.getApplicationContext())
+        linearLayout = AugmentationLinearLayout(currentActivity.getApplicationContext())
         linearLayout.setOrientation(LinearLayout.HORIZONTAL)
         linearLayout.setId(linearLayoutId)
         # Pass in the camera image processor to the camera fragment.
