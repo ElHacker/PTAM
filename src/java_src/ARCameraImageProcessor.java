@@ -1,5 +1,7 @@
 package org.cs231a.ptam;
 
+import android.graphics.Bitmap;
+
 public interface ARCameraImageProcessor {
     /**
      * Constructs the camera intrinsic transform matrix K.
@@ -30,4 +32,12 @@ public interface ARCameraImageProcessor {
    * Assumes no distortion in camera.
    */
   void constructIntrinsicCalibrationMatrixApproximation(float focalLength, int width, int height);
+
+
+  /**
+   * Builds a numpy image array with RGB color components with dimensions
+   * (Width, Height, 3). Receives a byte[] buffer.
+   * Gets called once per frame.
+   */
+  void buildImageArrayFromBitmapCameraFrame(byte[] buffer, int width, int height);
 }

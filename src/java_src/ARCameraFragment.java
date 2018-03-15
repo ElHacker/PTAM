@@ -11,6 +11,7 @@ import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Point;
@@ -136,27 +137,11 @@ public class ARCameraFragment extends Fragment {
 
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture texture) {
-          //int expectedImageWidth = MAX_PREVIEW_WIDTH;
-          //int expectedImageHeight = MAX_PREVIEW_HEIGHT;
+          //System.out.println("SURFACE TEXTURE UPDATED");
+          //int expectedImageWidth = 200;
+          //int expectedImageHeight = 200;
           //Bitmap bitmap = mTextureView.getBitmap(expectedImageWidth, expectedImageHeight);
-          //for (int i = 0; i < bitmap.getWidth(); i++) {
-            //for (int j = 0; j < bitmap.getHeight(); j++) {
-              //int pixel = bitmap.getPixel(i, j);
-              //// Decode the pixel in color ARGB componends.
-              //int A = (pixel >> 24) & 0xff;
-              //int R = (pixel >> 16) & 0xff;
-              //int G = (pixel >>  8) & 0xff;
-              //int B = (pixel      ) & 0xff;
-              //if (R > 128) {
-                //R = 255;
-              //} else {
-                //R = 0;
-              //}
-              //// Encode the new pixel color.
-              //int newPixel = (A & 0xff) << 24 | (R & 0xff) << 16 | (G & 0xff) << 8 | (B & 0xff);
-              //bitmap.setPixel(i, j, pixel);
-            //}
-          //}
+          //mARCameraImageProcessor.buildImageArrayFromBitmapCameraFrame(bitmap);
         }
 
     };
@@ -252,7 +237,30 @@ public class ARCameraFragment extends Fragment {
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile));
+            //mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile));
+            Log.d(TAG, "NEW IMAGE FRAME RECEIVED");
+            Image image = reader.acquireNextImage();
+            try {
+              if (image == null) {
+                throw new NullPointerException("Image can't be null");
+              }
+              ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+              byte[] imageByteArray = new byte[buffer.remaining()];
+              buffer.get(imageByteArray);
+
+              Log.d(TAG, "IMAGE BYTE ARRAY LENGTH: " + imageByteArray.length);
+              Log.d(TAG, "NEW IMAGE FRAME SENT");
+
+              mARCameraImageProcessor.buildImageArrayFromBitmapCameraFrame(
+                imageByteArray,
+                mImageReader.getWidth(),
+                mImageReader.getHeight());
+            } catch (NullPointerException ex) {
+            } finally {
+              if (image != null) {
+                image.close();
+              }
+            }
         }
 
     };
@@ -530,10 +538,10 @@ public class ARCameraFragment extends Fragment {
 
                 // For still image captures, we use the largest available size.
                 Size largest = Collections.max(
-                        Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
+                        Arrays.asList(map.getOutputSizes(ImageFormat.YUV_420_888)),
                         new CompareSizesByArea());
                 mImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(),
-                        ImageFormat.JPEG, /*maxImages*/2);
+                        ImageFormat.YUV_420_888, /*maxImages*/2);
                 mImageReader.setOnImageAvailableListener(
                         mOnImageAvailableListener, mBackgroundHandler);
 
@@ -661,6 +669,7 @@ public class ARCameraFragment extends Fragment {
             //requestCameraPermission();
             //return;
         //}
+        Log.d(TAG, "OPENED THE CAMERA");
         setUpCameraOutputs(width, height);
         configureTransform(width, height);
         Activity activity = getActivity();
@@ -743,6 +752,9 @@ public class ARCameraFragment extends Fragment {
             // We set up a CaptureRequest.Builder with the output Surface.
             mPreviewRequestBuilder
                     = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            // Add the new target to our CaptureRequest.Buider.
+            mPreviewRequestBuilder.addTarget(mImageReader.getSurface());
+
             mPreviewRequestBuilder.addTarget(surface);
 
             // Here, we create a CameraCaptureSession for camera preview.
