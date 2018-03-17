@@ -10,11 +10,16 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.RectF;
+import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
+import android.graphics.YuvImage;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -42,7 +47,15 @@ import android.view.TextureView;
 import android.view.ViewGroup;
 import android.view.View;
 import android.widget.Toast;
+import android.renderscript.Allocation;
+import android.renderscript.Element;
+import android.renderscript.RenderScript;
+import android.renderscript.ScriptIntrinsicBlur;
+import android.renderscript.ScriptIntrinsicResize;
+import android.renderscript.ScriptIntrinsicYuvToRGB;
+import android.renderscript.Type;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -135,6 +148,11 @@ public class ARCameraFragment extends Fragment {
 
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture texture) {
+          //System.out.println("SURFACE TEXTURE UPDATED");
+          //int expectedImageWidth = 200;
+          //int expectedImageHeight = 200;
+          //Bitmap bitmap = mTextureView.getBitmap(expectedImageWidth, expectedImageHeight);
+          //mARCameraImageProcessor.buildImageArrayFromBitmapCameraFrame(bitmap);
         }
 
     };
@@ -230,9 +248,185 @@ public class ARCameraFragment extends Fragment {
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile));
+            Log.d(TAG, "NEW IMAGE FRAME RECEIVED");
+            slowPipeline(reader);
         }
 
+        // Makes use of Intrinsic RenderScripts for YUV to RGB conversion and
+        // Resizing.
+        private void hardwareAcceleratedPipeline(ImageReader reader) {
+            RenderScript rs = RenderScript.create(mContext);
+            Image image = reader.acquireNextImage();
+            int width = reader.getWidth();
+            int height = reader.getHeight();
+            byte[] imageByteArray = YUV_420_888toNV21(image);
+
+            // Get the YuvImage from the current frame.
+            ScriptIntrinsicYuvToRGB yuvToRgbIntrinsic = ScriptIntrinsicYuvToRGB.create(rs, Element.U8_4(rs));
+
+            Type.Builder yuvType = new Type.Builder(rs, Element.U8(rs)).setX(imageByteArray.length);
+            Allocation yuvAllocation = Allocation.createTyped(rs, yuvType.create(), Allocation.USAGE_SCRIPT);
+
+            Type.Builder rgbaType = new Type.Builder(rs, Element.RGBA_8888(rs)).setX(width).setY(height);
+            Allocation rgbAllocation = Allocation.createTyped(rs, rgbaType.create(), Allocation.USAGE_SCRIPT);
+
+            yuvAllocation.copyFrom(imageByteArray);
+
+            yuvToRgbIntrinsic.setInput(yuvAllocation);
+            yuvToRgbIntrinsic.forEach(rgbAllocation);
+
+            byte[] rgbByteArray = new byte[width * height * 4];
+            Bitmap imageBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            rgbAllocation.copyTo(imageBitmap);
+            Log.d(TAG, "RGB Byte Bitmap Full Size W: " + imageBitmap.getWidth() + " H: " + imageBitmap.getHeight());
+
+            // Resize the image
+            int desiredWidth = 320;
+            imageBitmap = resizeBitmap2(rs, imageBitmap, desiredWidth);
+            Log.d(TAG, "Resized Bitmap W: " + imageBitmap.getWidth() + " H: " + imageBitmap.getHeight());
+
+            // Process the image
+            sendBitmapToImageProcessor(imageBitmap);
+            image.close();
+        }
+
+        // Got this from https://medium.com/@petrakeas/alias-free-resize-with-renderscript-5bf15a86ce3
+        public Bitmap resizeBitmap2(RenderScript rs, Bitmap src, int dstWidth) {
+            Bitmap.Config bitmapConfig = src.getConfig();
+            int srcWidth = src.getWidth();
+            int srcHeight = src.getHeight();
+            float srcAspectRatio = (float) srcWidth / srcHeight;
+            int dstHeight = (int) (dstWidth / srcAspectRatio);
+
+
+            Allocation tmpIn = Allocation.createFromBitmap(rs, src);
+            Allocation tmpFiltered = Allocation.createTyped(rs, tmpIn.getType());
+
+            /* Resize */
+            Bitmap dst = Bitmap.createBitmap(dstWidth, dstHeight, bitmapConfig);
+            Type t = Type.createXY(rs, tmpFiltered.getElement(), dstWidth, dstHeight);
+            Allocation tmpOut = Allocation.createTyped(rs, t);
+            ScriptIntrinsicResize resizeIntrinsic = ScriptIntrinsicResize.create(rs);
+
+            resizeIntrinsic.setInput(tmpFiltered);
+            resizeIntrinsic.forEach_bicubic(tmpOut);
+            tmpOut.copyTo(dst);
+
+            tmpFiltered.destroy();
+            tmpOut.destroy();
+            resizeIntrinsic.destroy();
+
+            return dst;
+        }
+
+        private void slowPipeline(ImageReader reader) {
+            Image image = reader.acquireNextImage();
+            try {
+              if (image == null) {
+                throw new NullPointerException("Image can't be null");
+              }
+              if (image.getFormat() == ImageFormat.YUV_420_888) {
+                  // Get the YuvImage from the current frame.
+                  byte[] imageByteArray = YUV_420_888toNV21(image);
+                  YuvImage yuvImage = new YuvImage(
+                      imageByteArray,
+                      ImageFormat.NV21,
+                      reader.getWidth(),
+                      reader.getHeight(),
+                      null);
+                  ByteArrayOutputStream out = new ByteArrayOutputStream();
+                  //// Compress the YuvImage to JPEG
+                  int quality = 30;
+                  yuvImage.compressToJpeg(
+                      new Rect(0, 0, reader.getWidth(), reader.getHeight()),
+                      quality,
+                      out);
+                  byte[] jpegBytes = out.toByteArray();
+                  processJpegImage(jpegBytes);
+              } else if (image.getFormat() == ImageFormat.JPEG) {
+                  Log.d(TAG, "JPEG IMAGE PLANES: " + image.getPlanes().length);
+                  ByteBuffer imageBuffer = image.getPlanes()[0].getBuffer();
+                  byte[] jpegBytes = new byte[imageBuffer.remaining()];
+                  imageBuffer.get(jpegBytes);
+                  processJpegImage(jpegBytes);
+              } else {
+                throw new Exception("Image Format not Supported");
+              }
+            } catch (Exception ex) {
+            } finally {
+              if (image != null) {
+                image.close();
+              }
+            }
+        }
+
+        private void processJpegImage(byte[] jpegBytes) {
+            Log.d(TAG, "IMAGE BYTE ARRAY LENGTH: " + jpegBytes.length);
+            Log.d(TAG, "NEW IMAGE FRAME SENT");
+            // Scale down the image.
+            Bitmap bitmap = ShrinkBitmap(jpegBytes, 100, 100);
+            sendBitmapToImageProcessor(bitmap);
+        }
+
+        private void sendBitmapToImageProcessor(Bitmap bitmap) {
+            // Get the image matrix with RGB color components.
+            int[][][] imageMatrix = new int[bitmap.getWidth()][bitmap.getHeight()][3];
+            int red = 0;
+            int green = 1;
+            int blue = 2;
+            Log.d(TAG, "WIDTH: " + bitmap.getWidth() + " HEIGHT: " + bitmap.getHeight());
+            for (int x = 0; x < bitmap.getWidth(); x++) {
+              for (int y = 0; y < bitmap.getHeight(); y++) {
+                int pixel = bitmap.getPixel(x, y);
+                imageMatrix[x][y][red] = Color.red(pixel);
+                imageMatrix[x][y][green] = Color.green(pixel);
+                imageMatrix[x][y][blue] = Color.blue(pixel);
+              }
+            }
+            // Pass the imageMatrix down to the Image Processor.
+            mARCameraImageProcessor.processCameraFrame(
+              imageMatrix,
+              bitmap.getWidth(),
+              bitmap.getHeight());
+        }
+
+        private byte[] YUV_420_888toNV21(Image image) {
+            byte[] nv21;
+            ByteBuffer yBuffer = image.getPlanes()[0].getBuffer();
+            ByteBuffer uBuffer = image.getPlanes()[1].getBuffer();
+            ByteBuffer vBuffer = image.getPlanes()[2].getBuffer();
+
+            int ySize = yBuffer.remaining();
+            int uSize = uBuffer.remaining();
+            int vSize = vBuffer.remaining();
+
+            nv21 = new byte[ySize + uSize + vSize];
+
+            //U and V are swapped
+            yBuffer.get(nv21, 0, ySize);
+            vBuffer.get(nv21, ySize, vSize);
+            uBuffer.get(nv21, ySize + vSize, uSize);
+
+            return nv21;
+        }
+
+        private Bitmap ShrinkBitmap(byte[] bytes, int width, int height) {
+          BitmapFactory.Options bmpFactoryOptions = new BitmapFactory.Options();
+          bmpFactoryOptions.inJustDecodeBounds = true;
+          Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bmpFactoryOptions);
+
+          // Find the correct scale value. It should be the power of 2.
+          int scale = 1;
+          while(bmpFactoryOptions.outWidth / scale / 2 >= width &&
+                bmpFactoryOptions.outHeight / scale / 2 >= height) {
+              scale *= 2;
+          }
+
+          BitmapFactory.Options resultFactoryOptions = new BitmapFactory.Options();
+          resultFactoryOptions.inSampleSize = scale;
+          bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, resultFactoryOptions);
+          return bitmap;
+        }
     };
 
     /**
@@ -420,7 +614,6 @@ public class ARCameraFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         mTextureView = new AutoFitTextureView(mContext);
-        System.out.println("onCreateView");
         return mTextureView;
     }
 
@@ -433,7 +626,6 @@ public class ARCameraFragment extends Fragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        System.out.println("onActivityCreated");
         mFile = new File(getActivity().getExternalFilesDir(null), "pic.jpg");
     }
 
@@ -510,10 +702,10 @@ public class ARCameraFragment extends Fragment {
 
                 // For still image captures, we use the largest available size.
                 Size largest = Collections.max(
-                        Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
+                        Arrays.asList(map.getOutputSizes(ImageFormat.YUV_420_888)),
                         new CompareSizesByArea());
                 mImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(),
-                        ImageFormat.JPEG, /*maxImages*/2);
+                        ImageFormat.YUV_420_888, /*maxImages*/2);
                 mImageReader.setOnImageAvailableListener(
                         mOnImageAvailableListener, mBackgroundHandler);
 
@@ -641,6 +833,7 @@ public class ARCameraFragment extends Fragment {
             //requestCameraPermission();
             //return;
         //}
+        Log.d(TAG, "OPENED THE CAMERA");
         setUpCameraOutputs(width, height);
         configureTransform(width, height);
         Activity activity = getActivity();
@@ -723,6 +916,9 @@ public class ARCameraFragment extends Fragment {
             // We set up a CaptureRequest.Builder with the output Surface.
             mPreviewRequestBuilder
                     = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            // Add the new target to our CaptureRequest.Buider.
+            mPreviewRequestBuilder.addTarget(mImageReader.getSurface());
+
             mPreviewRequestBuilder.addTarget(surface);
 
             // Here, we create a CameraCaptureSession for camera preview.

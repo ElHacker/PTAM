@@ -23,7 +23,10 @@ import numpy as np
 
 PythonActivity = autoclass('org.kivy.android.PythonActivity')
 LinearLayout = autoclass('android.widget.LinearLayout')
+AugmentationLinearLayout = autoclass('org.cs231a.ptam.AugmentationLinearLayout')
 ARCameraFragment = autoclass('org.cs231a.ptam.ARCameraFragment')
+Bitmap = autoclass('android.graphics.Bitmap')
+Color = autoclass('android.graphics.Color')
 HelloWorld = autoclass('org.cs231a.ptam.HelloWorld')
 
 # Renders a simple cube.
@@ -127,6 +130,13 @@ class PythonARCameraImageProcessor(PythonJavaClass):
         Logger.info("The approximated Internal Calibration Matrix:")
         Logger.info(K)
 
+    @java_method('([[[III)V')
+    def processCameraFrame(self, imageFrame, width, height):
+        print("Height %d and Width: %d" %(width, height))
+        image = np.array(imageFrame)
+        print("Image Frame")
+        print(image)
+
 class TestCamera(App):
 
     def on_start(self):
@@ -138,7 +148,7 @@ class TestCamera(App):
         fragmentManager = currentActivity.getFragmentManager()
         fragmentTransaction = fragmentManager.beginTransaction()
         linearLayoutId = 12345
-        linearLayout = LinearLayout(currentActivity.getApplicationContext())
+        linearLayout = AugmentationLinearLayout(currentActivity.getApplicationContext())
         linearLayout.setOrientation(LinearLayout.HORIZONTAL)
         linearLayout.setId(linearLayoutId)
         # Pass in the camera image processor to the camera fragment.
