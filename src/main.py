@@ -130,21 +130,10 @@ class PythonARCameraImageProcessor(PythonJavaClass):
         Logger.info("The approximated Internal Calibration Matrix:")
         Logger.info(K)
 
-    @java_method('(Landroid/graphics/Bitmap;II)V')
-    def buildImageArrayFromBitmapCameraFrame(self, bitmap, width, height):
+    @java_method('([[[III)V')
+    def processCameraFrame(self, imageFrame, width, height):
         print("Height %d and Width: %d" %(width, height))
-        image = np.zeros((width, height, 3))
-        red = 0
-        green = 1
-        blue = 2
-        for x in range(width):
-            for y in range(height):
-                print("x: %d, y: %d" % (x, y))
-                pixel = bitmap.getPixel(x, y)
-                print("pixel: %d" % pixel)
-                image[x, y, red] = Color.red(pixel)
-                image[x, y, green] = Color.green(pixel)
-                image[x, y, blue] = Color.blue(pixel)
+        image = np.array(imageFrame)
         print("Image Frame")
         print(image)
 

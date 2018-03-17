@@ -248,13 +248,8 @@ public class ARCameraFragment extends Fragment {
                 throw new NullPointerException("Image can't be null");
               }
               if (image.getFormat() == ImageFormat.YUV_420_888) {
-                  ByteBuffer b1 = image.getPlanes()[0].getBuffer();
-                  ByteBuffer b2 = image.getPlanes()[1].getBuffer();
-                  ByteBuffer b3 = image.getPlanes()[2].getBuffer();
-                  ByteBuffer imageBuffer = ByteBuffer.allocate(
-                      b1.limit() + b2.limit() + b3.limit());
-                  byte[] imageByteArray = new byte[imageBuffer.remaining()];
-                  imageBuffer.get(imageByteArray);
+                  // Get the YuvImage from the current frame.
+                  byte[] imageByteArray = YUV_420_888toNV21(image);
                   YuvImage yuvImage = new YuvImage(
                       imageByteArray,
                       ImageFormat.NV21,
@@ -262,7 +257,8 @@ public class ARCameraFragment extends Fragment {
                       reader.getHeight(),
                       null);
                   ByteArrayOutputStream out = new ByteArrayOutputStream();
-                  int quality = 50;
+                  // Compress the YuvImage to JPEG
+                  int quality = 30;
                   yuvImage.compressToJpeg(
                       new Rect(0, 0, reader.getWidth(), reader.getHeight()),
                       quality,
@@ -270,13 +266,14 @@ public class ARCameraFragment extends Fragment {
                   byte[] jpegBytes = out.toByteArray();
                   Log.d(TAG, "IMAGE BYTE ARRAY LENGTH: " + jpegBytes.length);
                   Log.d(TAG, "NEW IMAGE FRAME SENT");
-                  Bitmap bitmap = ShrinkBitmap(jpegBytes, 200, 200);
-                  //int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
-                  //bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
+                  // Scale down the image.
+                  Bitmap bitmap = ShrinkBitmap(jpegBytes, 100, 100);
+                  // Get the image matrix with RGB color components.
                   int[][][] imageMatrix = new int[bitmap.getWidth()][bitmap.getHeight()][3];
                   int red = 0;
                   int green = 1;
                   int blue = 2;
+                  Log.d(TAG, "WIDTH: " + bitmap.getWidth() + " HEIGHT: " + bitmap.getHeight());
                   for (int x = 0; x < bitmap.getWidth(); x++) {
                     for (int y = 0; y < bitmap.getHeight(); y++) {
                       int pixel = bitmap.getPixel(x, y);
@@ -285,12 +282,11 @@ public class ARCameraFragment extends Fragment {
                       imageMatrix[x][y][blue] = Color.blue(pixel);
                     }
                   }
-                  Log.d(TAG, "ImageMatrix");
-                  Log.d(TAG, "" + imageMatrix);
-                  //mARCameraImageProcessor.buildImageArrayFromBitmapCameraFrame(
-                    //bitmap,
-                    //bitmap.getWidth(),
-                    //bitmap.getHeight());
+                  // Pass the imageMatrix down to the Image Processor.
+                  mARCameraImageProcessor.processCameraFrame(
+                    imageMatrix,
+                    bitmap.getWidth(),
+                    bitmap.getHeight());
               }
             } catch (NullPointerException ex) {
             } finally {
@@ -298,35 +294,26 @@ public class ARCameraFragment extends Fragment {
                 image.close();
               }
             }
+        }
 
-            //mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile));
-            //Log.d(TAG, "NEW IMAGE FRAME RECEIVED");
-            //Image image = reader.acquireNextImage();
-            //try {
-              //if (image == null) {
-                //throw new NullPointerException("Image can't be null");
-              //}
-              //ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-              //byte[] imageByteArray = new byte[buffer.remaining()];
-              //buffer.get(imageByteArray);
-              //int[] rgbImage = YUVConverter.convertYUV420_NV21toRGB8888(
-                  //imageByteArray,
-                  //mImageReader.getWidth(),
-                  //mImageReader.getHeight());
+        private byte[] YUV_420_888toNV21(Image image) {
+            byte[] nv21;
+            ByteBuffer yBuffer = image.getPlanes()[0].getBuffer();
+            ByteBuffer uBuffer = image.getPlanes()[1].getBuffer();
+            ByteBuffer vBuffer = image.getPlanes()[2].getBuffer();
 
-              //Log.d(TAG, "IMAGE BYTE ARRAY LENGTH: " + rgbImage.length);
-              //Log.d(TAG, "NEW IMAGE FRAME SENT");
+            int ySize = yBuffer.remaining();
+            int uSize = uBuffer.remaining();
+            int vSize = vBuffer.remaining();
 
-              //mARCameraImageProcessor.buildImageArrayFromBitmapCameraFrame(
-                //rgbImage,
-                //mImageReader.getWidth(),
-                //mImageReader.getHeight());
-            //} catch (NullPointerException ex) {
-            //} finally {
-              //if (image != null) {
-                //image.close();
-              //}
-            //}
+            nv21 = new byte[ySize + uSize + vSize];
+
+            //U and V are swapped
+            yBuffer.get(nv21, 0, ySize);
+            vBuffer.get(nv21, ySize, vSize);
+            uBuffer.get(nv21, ySize + vSize, uSize);
+
+            return nv21;
         }
 
         private Bitmap ShrinkBitmap(byte[] bytes, int width, int height) {
@@ -334,19 +321,16 @@ public class ARCameraFragment extends Fragment {
           bmpFactoryOptions.inJustDecodeBounds = true;
           Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bmpFactoryOptions);
 
-          int heightRatio = (int) Math.ceil(bmpFactoryOptions.outHeight / (float) height);
-          int widthRatio = (int) Math.ceil(bmpFactoryOptions.outWidth / (float) width);
-
-          if (heightRatio > 1 || widthRatio > 1) {
-            if (heightRatio > widthRatio) {
-              bmpFactoryOptions.inSampleSize = heightRatio;
-            } else {
-              bmpFactoryOptions.inSampleSize = widthRatio;
-            }
+          // Find the correct scale value. It should be the power of 2.
+          int scale = 1;
+          while(bmpFactoryOptions.outWidth / scale / 2 >= width &&
+                bmpFactoryOptions.outHeight / scale / 2 >= height) {
+              scale *= 2;
           }
 
-          bmpFactoryOptions.inJustDecodeBounds = false;
-          bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bmpFactoryOptions);
+          BitmapFactory.Options resultFactoryOptions = new BitmapFactory.Options();
+          resultFactoryOptions.inSampleSize = scale;
+          bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, resultFactoryOptions);
           return bitmap;
         }
     };
