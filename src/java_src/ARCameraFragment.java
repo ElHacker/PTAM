@@ -47,6 +47,13 @@ import android.view.TextureView;
 import android.view.ViewGroup;
 import android.view.View;
 import android.widget.Toast;
+import android.renderscript.Allocation;
+import android.renderscript.Element;
+import android.renderscript.RenderScript;
+import android.renderscript.ScriptIntrinsicBlur;
+import android.renderscript.ScriptIntrinsicResize;
+import android.renderscript.ScriptIntrinsicYuvToRGB;
+import android.renderscript.Type;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -242,6 +249,77 @@ public class ARCameraFragment extends Fragment {
         @Override
         public void onImageAvailable(ImageReader reader) {
             Log.d(TAG, "NEW IMAGE FRAME RECEIVED");
+            slowPipeline(reader);
+        }
+
+        // Makes use of Intrinsic RenderScripts for YUV to RGB conversion and
+        // Resizing.
+        private void hardwareAcceleratedPipeline(ImageReader reader) {
+            RenderScript rs = RenderScript.create(mContext);
+            Image image = reader.acquireNextImage();
+            int width = reader.getWidth();
+            int height = reader.getHeight();
+            byte[] imageByteArray = YUV_420_888toNV21(image);
+
+            // Get the YuvImage from the current frame.
+            ScriptIntrinsicYuvToRGB yuvToRgbIntrinsic = ScriptIntrinsicYuvToRGB.create(rs, Element.U8_4(rs));
+
+            Type.Builder yuvType = new Type.Builder(rs, Element.U8(rs)).setX(imageByteArray.length);
+            Allocation yuvAllocation = Allocation.createTyped(rs, yuvType.create(), Allocation.USAGE_SCRIPT);
+
+            Type.Builder rgbaType = new Type.Builder(rs, Element.RGBA_8888(rs)).setX(width).setY(height);
+            Allocation rgbAllocation = Allocation.createTyped(rs, rgbaType.create(), Allocation.USAGE_SCRIPT);
+
+            yuvAllocation.copyFrom(imageByteArray);
+
+            yuvToRgbIntrinsic.setInput(yuvAllocation);
+            yuvToRgbIntrinsic.forEach(rgbAllocation);
+
+            byte[] rgbByteArray = new byte[width * height * 4];
+            Bitmap imageBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            rgbAllocation.copyTo(imageBitmap);
+            Log.d(TAG, "RGB Byte Bitmap Full Size W: " + imageBitmap.getWidth() + " H: " + imageBitmap.getHeight());
+
+            // Resize the image
+            int desiredWidth = 320;
+            imageBitmap = resizeBitmap2(rs, imageBitmap, desiredWidth);
+            Log.d(TAG, "Resized Bitmap W: " + imageBitmap.getWidth() + " H: " + imageBitmap.getHeight());
+
+            // Process the image
+            sendBitmapToImageProcessor(imageBitmap);
+            image.close();
+        }
+
+        // Got this from https://medium.com/@petrakeas/alias-free-resize-with-renderscript-5bf15a86ce3
+        public Bitmap resizeBitmap2(RenderScript rs, Bitmap src, int dstWidth) {
+            Bitmap.Config bitmapConfig = src.getConfig();
+            int srcWidth = src.getWidth();
+            int srcHeight = src.getHeight();
+            float srcAspectRatio = (float) srcWidth / srcHeight;
+            int dstHeight = (int) (dstWidth / srcAspectRatio);
+
+
+            Allocation tmpIn = Allocation.createFromBitmap(rs, src);
+            Allocation tmpFiltered = Allocation.createTyped(rs, tmpIn.getType());
+
+            /* Resize */
+            Bitmap dst = Bitmap.createBitmap(dstWidth, dstHeight, bitmapConfig);
+            Type t = Type.createXY(rs, tmpFiltered.getElement(), dstWidth, dstHeight);
+            Allocation tmpOut = Allocation.createTyped(rs, t);
+            ScriptIntrinsicResize resizeIntrinsic = ScriptIntrinsicResize.create(rs);
+
+            resizeIntrinsic.setInput(tmpFiltered);
+            resizeIntrinsic.forEach_bicubic(tmpOut);
+            tmpOut.copyTo(dst);
+
+            tmpFiltered.destroy();
+            tmpOut.destroy();
+            resizeIntrinsic.destroy();
+
+            return dst;
+        }
+
+        private void slowPipeline(ImageReader reader) {
             Image image = reader.acquireNextImage();
             try {
               if (image == null) {
@@ -287,6 +365,10 @@ public class ARCameraFragment extends Fragment {
             Log.d(TAG, "NEW IMAGE FRAME SENT");
             // Scale down the image.
             Bitmap bitmap = ShrinkBitmap(jpegBytes, 100, 100);
+            sendBitmapToImageProcessor(bitmap);
+        }
+
+        private void sendBitmapToImageProcessor(Bitmap bitmap) {
             // Get the image matrix with RGB color components.
             int[][][] imageMatrix = new int[bitmap.getWidth()][bitmap.getHeight()][3];
             int red = 0;
@@ -620,10 +702,10 @@ public class ARCameraFragment extends Fragment {
 
                 // For still image captures, we use the largest available size.
                 Size largest = Collections.max(
-                        Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
+                        Arrays.asList(map.getOutputSizes(ImageFormat.YUV_420_888)),
                         new CompareSizesByArea());
                 mImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(),
-                        ImageFormat.JPEG, /*maxImages*/2);
+                        ImageFormat.YUV_420_888, /*maxImages*/2);
                 mImageReader.setOnImageAvailableListener(
                         mOnImageAvailableListener, mBackgroundHandler);
 
