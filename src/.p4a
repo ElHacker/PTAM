@@ -2,7 +2,7 @@
 --name "PTAM"
 --version 0.1
 --bootstrap sdl2
---requirements python2,kivy,numpy,setuptools,kivy3,pyjnius,android,opencv
+--requirements python2,kivy,numpy,setuptools,kivy3,pyjnius,android
 --arch armeabi-v7a
 --permission CAMERA
 --add-source ~/Developer/Android/PTAM/src/java_src:HelloWorld.java

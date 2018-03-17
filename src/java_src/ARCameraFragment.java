@@ -12,11 +12,14 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.RectF;
+import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
+import android.graphics.YuvImage;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -45,6 +48,7 @@ import android.view.ViewGroup;
 import android.view.View;
 import android.widget.Toast;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -237,32 +241,114 @@ public class ARCameraFragment extends Fragment {
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            //mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile));
             Log.d(TAG, "NEW IMAGE FRAME RECEIVED");
             Image image = reader.acquireNextImage();
             try {
               if (image == null) {
                 throw new NullPointerException("Image can't be null");
               }
-              ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-              byte[] imageByteArray = new byte[buffer.remaining()];
-              buffer.get(imageByteArray);
-
-              Log.d(TAG, "IMAGE BYTE ARRAY LENGTH: " + imageByteArray.length);
-              Log.d(TAG, "NEW IMAGE FRAME SENT");
-
-              mARCameraImageProcessor.buildImageArrayFromBitmapCameraFrame(
-                imageByteArray,
-                mImageReader.getWidth(),
-                mImageReader.getHeight());
+              if (image.getFormat() == ImageFormat.YUV_420_888) {
+                  ByteBuffer b1 = image.getPlanes()[0].getBuffer();
+                  ByteBuffer b2 = image.getPlanes()[1].getBuffer();
+                  ByteBuffer b3 = image.getPlanes()[2].getBuffer();
+                  ByteBuffer imageBuffer = ByteBuffer.allocate(
+                      b1.limit() + b2.limit() + b3.limit());
+                  byte[] imageByteArray = new byte[imageBuffer.remaining()];
+                  imageBuffer.get(imageByteArray);
+                  YuvImage yuvImage = new YuvImage(
+                      imageByteArray,
+                      ImageFormat.NV21,
+                      reader.getWidth(),
+                      reader.getHeight(),
+                      null);
+                  ByteArrayOutputStream out = new ByteArrayOutputStream();
+                  int quality = 50;
+                  yuvImage.compressToJpeg(
+                      new Rect(0, 0, reader.getWidth(), reader.getHeight()),
+                      quality,
+                      out);
+                  byte[] jpegBytes = out.toByteArray();
+                  Log.d(TAG, "IMAGE BYTE ARRAY LENGTH: " + jpegBytes.length);
+                  Log.d(TAG, "NEW IMAGE FRAME SENT");
+                  Bitmap bitmap = ShrinkBitmap(jpegBytes, 200, 200);
+                  //int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
+                  //bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
+                  int[][][] imageMatrix = new int[bitmap.getWidth()][bitmap.getHeight()][3];
+                  int red = 0;
+                  int green = 1;
+                  int blue = 2;
+                  for (int x = 0; x < bitmap.getWidth(); x++) {
+                    for (int y = 0; y < bitmap.getHeight(); y++) {
+                      int pixel = bitmap.getPixel(x, y);
+                      imageMatrix[x][y][red] = Color.red(pixel);
+                      imageMatrix[x][y][green] = Color.green(pixel);
+                      imageMatrix[x][y][blue] = Color.blue(pixel);
+                    }
+                  }
+                  Log.d(TAG, "ImageMatrix");
+                  Log.d(TAG, "" + imageMatrix);
+                  //mARCameraImageProcessor.buildImageArrayFromBitmapCameraFrame(
+                    //bitmap,
+                    //bitmap.getWidth(),
+                    //bitmap.getHeight());
+              }
             } catch (NullPointerException ex) {
             } finally {
               if (image != null) {
                 image.close();
               }
             }
+
+            //mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile));
+            //Log.d(TAG, "NEW IMAGE FRAME RECEIVED");
+            //Image image = reader.acquireNextImage();
+            //try {
+              //if (image == null) {
+                //throw new NullPointerException("Image can't be null");
+              //}
+              //ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+              //byte[] imageByteArray = new byte[buffer.remaining()];
+              //buffer.get(imageByteArray);
+              //int[] rgbImage = YUVConverter.convertYUV420_NV21toRGB8888(
+                  //imageByteArray,
+                  //mImageReader.getWidth(),
+                  //mImageReader.getHeight());
+
+              //Log.d(TAG, "IMAGE BYTE ARRAY LENGTH: " + rgbImage.length);
+              //Log.d(TAG, "NEW IMAGE FRAME SENT");
+
+              //mARCameraImageProcessor.buildImageArrayFromBitmapCameraFrame(
+                //rgbImage,
+                //mImageReader.getWidth(),
+                //mImageReader.getHeight());
+            //} catch (NullPointerException ex) {
+            //} finally {
+              //if (image != null) {
+                //image.close();
+              //}
+            //}
         }
 
+        private Bitmap ShrinkBitmap(byte[] bytes, int width, int height) {
+          BitmapFactory.Options bmpFactoryOptions = new BitmapFactory.Options();
+          bmpFactoryOptions.inJustDecodeBounds = true;
+          Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bmpFactoryOptions);
+
+          int heightRatio = (int) Math.ceil(bmpFactoryOptions.outHeight / (float) height);
+          int widthRatio = (int) Math.ceil(bmpFactoryOptions.outWidth / (float) width);
+
+          if (heightRatio > 1 || widthRatio > 1) {
+            if (heightRatio > widthRatio) {
+              bmpFactoryOptions.inSampleSize = heightRatio;
+            } else {
+              bmpFactoryOptions.inSampleSize = widthRatio;
+            }
+          }
+
+          bmpFactoryOptions.inJustDecodeBounds = false;
+          bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bmpFactoryOptions);
+          return bitmap;
+        }
     };
 
     /**

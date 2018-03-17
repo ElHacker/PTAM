@@ -36,8 +36,8 @@ public interface ARCameraImageProcessor {
 
   /**
    * Builds a numpy image array with RGB color components with dimensions
-   * (Width, Height, 3). Receives a byte[] buffer.
+   * (Width, Height, 3). Receives a bitmap.
    * Gets called once per frame.
    */
-  void buildImageArrayFromBitmapCameraFrame(byte[] buffer, int width, int height);
+  void buildImageArrayFromBitmapCameraFrame(Bitmap bitmap, int width, int height);
 }

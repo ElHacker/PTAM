@@ -19,7 +19,6 @@ from kivy3 import Material, Mesh
 
 # numpy
 import numpy as np
-from cv2 import cvtColor
 
 
 PythonActivity = autoclass('org.kivy.android.PythonActivity')
@@ -131,16 +130,23 @@ class PythonARCameraImageProcessor(PythonJavaClass):
         Logger.info("The approximated Internal Calibration Matrix:")
         Logger.info(K)
 
-    @java_method('([BII)V')
-    def buildImageArrayFromBitmapCameraFrame(self, buf, width, height):
+    @java_method('(Landroid/graphics/Bitmap;II)V')
+    def buildImageArrayFromBitmapCameraFrame(self, bitmap, width, height):
         print("Height %d and Width: %d" %(width, height))
-        buf = buf.tostring()
-        arr = np.fromstring(buf, 'uint8').reshape((height + height / 2), width)
-        # NV21 -> BGR
-        arr = cvtColor(arr, 93)
+        image = np.zeros((width, height, 3))
+        red = 0
+        green = 1
+        blue = 2
+        for x in range(width):
+            for y in range(height):
+                print("x: %d, y: %d" % (x, y))
+                pixel = bitmap.getPixel(x, y)
+                print("pixel: %d" % pixel)
+                image[x, y, red] = Color.red(pixel)
+                image[x, y, green] = Color.green(pixel)
+                image[x, y, blue] = Color.blue(pixel)
         print("Image Frame")
-        print(arr)
-
+        print(image)
 
 class TestCamera(App):
 
