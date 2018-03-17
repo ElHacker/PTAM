@@ -257,43 +257,55 @@ public class ARCameraFragment extends Fragment {
                       reader.getHeight(),
                       null);
                   ByteArrayOutputStream out = new ByteArrayOutputStream();
-                  // Compress the YuvImage to JPEG
+                  //// Compress the YuvImage to JPEG
                   int quality = 30;
                   yuvImage.compressToJpeg(
                       new Rect(0, 0, reader.getWidth(), reader.getHeight()),
                       quality,
                       out);
                   byte[] jpegBytes = out.toByteArray();
-                  Log.d(TAG, "IMAGE BYTE ARRAY LENGTH: " + jpegBytes.length);
-                  Log.d(TAG, "NEW IMAGE FRAME SENT");
-                  // Scale down the image.
-                  Bitmap bitmap = ShrinkBitmap(jpegBytes, 100, 100);
-                  // Get the image matrix with RGB color components.
-                  int[][][] imageMatrix = new int[bitmap.getWidth()][bitmap.getHeight()][3];
-                  int red = 0;
-                  int green = 1;
-                  int blue = 2;
-                  Log.d(TAG, "WIDTH: " + bitmap.getWidth() + " HEIGHT: " + bitmap.getHeight());
-                  for (int x = 0; x < bitmap.getWidth(); x++) {
-                    for (int y = 0; y < bitmap.getHeight(); y++) {
-                      int pixel = bitmap.getPixel(x, y);
-                      imageMatrix[x][y][red] = Color.red(pixel);
-                      imageMatrix[x][y][green] = Color.green(pixel);
-                      imageMatrix[x][y][blue] = Color.blue(pixel);
-                    }
-                  }
-                  // Pass the imageMatrix down to the Image Processor.
-                  mARCameraImageProcessor.processCameraFrame(
-                    imageMatrix,
-                    bitmap.getWidth(),
-                    bitmap.getHeight());
+                  processJpegImage(jpegBytes);
+              } else if (image.getFormat() == ImageFormat.JPEG) {
+                  Log.d(TAG, "JPEG IMAGE PLANES: " + image.getPlanes().length);
+                  ByteBuffer imageBuffer = image.getPlanes()[0].getBuffer();
+                  byte[] jpegBytes = new byte[imageBuffer.remaining()];
+                  imageBuffer.get(jpegBytes);
+                  processJpegImage(jpegBytes);
+              } else {
+                throw new Exception("Image Format not Supported");
               }
-            } catch (NullPointerException ex) {
+            } catch (Exception ex) {
             } finally {
               if (image != null) {
                 image.close();
               }
             }
+        }
+
+        private void processJpegImage(byte[] jpegBytes) {
+            Log.d(TAG, "IMAGE BYTE ARRAY LENGTH: " + jpegBytes.length);
+            Log.d(TAG, "NEW IMAGE FRAME SENT");
+            // Scale down the image.
+            Bitmap bitmap = ShrinkBitmap(jpegBytes, 100, 100);
+            // Get the image matrix with RGB color components.
+            int[][][] imageMatrix = new int[bitmap.getWidth()][bitmap.getHeight()][3];
+            int red = 0;
+            int green = 1;
+            int blue = 2;
+            Log.d(TAG, "WIDTH: " + bitmap.getWidth() + " HEIGHT: " + bitmap.getHeight());
+            for (int x = 0; x < bitmap.getWidth(); x++) {
+              for (int y = 0; y < bitmap.getHeight(); y++) {
+                int pixel = bitmap.getPixel(x, y);
+                imageMatrix[x][y][red] = Color.red(pixel);
+                imageMatrix[x][y][green] = Color.green(pixel);
+                imageMatrix[x][y][blue] = Color.blue(pixel);
+              }
+            }
+            // Pass the imageMatrix down to the Image Processor.
+            mARCameraImageProcessor.processCameraFrame(
+              imageMatrix,
+              bitmap.getWidth(),
+              bitmap.getHeight());
         }
 
         private byte[] YUV_420_888toNV21(Image image) {
@@ -608,10 +620,10 @@ public class ARCameraFragment extends Fragment {
 
                 // For still image captures, we use the largest available size.
                 Size largest = Collections.max(
-                        Arrays.asList(map.getOutputSizes(ImageFormat.YUV_420_888)),
+                        Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
                         new CompareSizesByArea());
                 mImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(),
-                        ImageFormat.YUV_420_888, /*maxImages*/2);
+                        ImageFormat.JPEG, /*maxImages*/2);
                 mImageReader.setOnImageAvailableListener(
                         mOnImageAvailableListener, mBackgroundHandler);
 
