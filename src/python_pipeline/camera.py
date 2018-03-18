@@ -4,11 +4,6 @@ import matplotlib.image as mpimg
 import argparse
 from moviepy.editor import VideoFileClip
 
-# Whole point of this script is to output:
-
-# image_no keypoint_no pixel_x pixel_y
-
-
 feature_detector = cv2.ORB_create()
 matcher = cv2.BFMatcher_create(cv2.NORM_HAMMING, crossCheck=True)
 isInitialized = False
@@ -85,14 +80,8 @@ def processImage(image, plot=False):
     current_matches = next_matches
     old_keypoints, old_descriptors = new_keypoints, new_descriptors
 
-    # for current_index, keypoint_no in current_matches.iteritems():
-        # keypoint = new_keypoints[current_index]
-        # print image_number, keypoint_no, keypoint.pt[0], keypoint.pt[1]
 
     image_number += 1
-    # cv2.imshow('frame', new_frame)
-    # img = ax.imshow(new_frame)
-    # plt.draw()
     image_frame = drawFeaturePoints(image, current_matches, new_keypoints)
 
     if plot:
