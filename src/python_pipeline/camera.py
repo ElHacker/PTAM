@@ -1,29 +1,52 @@
 import cv2
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import argparse
+from moviepy.editor import VideoFileClip
 
 # Whole point of this script is to output:
 
 # image_no keypoint_no pixel_x pixel_y
 
+
 feature_detector = cv2.ORB_create()
 matcher = cv2.BFMatcher_create(cv2.NORM_HAMMING, crossCheck=True)
+isInitialized = False
+current_matches = None
+image_number = 0
+keypoint_counter = 0
 
 #replace web address with video source of your choice, see VideoCapture docs
-cap = cv2.VideoCapture('http://10.200.1.58:8080/video')
+# cap = cv2.VideoCapture('videos/water.mp4')
 
-if cap.isOpened():
-    ret, old_frame = cap.read()
-    old_frame = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
+def initProcessImage(image):
+    global isInitialized
+    global old_descriptors
+    global old_keypoints
+    global current_matches
+    global keypoint_counter
+
+    old_frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     old_keypoints, old_descriptors = feature_detector.detectAndCompute(old_frame, None)
 
     keypoint_counter = len(old_keypoints)
     current_matches = dict((i,i) for i in xrange(len(old_keypoints)))
 
-    image_number = 0
-else:
-    print "capture didn't open - check the network and the IP address"
+    isInitialized = True
+    print(isInitialized)
 
-while(cap.isOpened()):
-    ret, new_frame = cap.read()
+
+def processImage(image, plot=False):
+    global old_descriptors
+    global old_keypoints
+    global current_matches
+    global image_number
+    global keypoint_counter
+
+    if not isInitialized:
+        initProcessImage(image)
+        return image
+    new_frame = image
     new_frame = cv2.cvtColor(new_frame, cv2.COLOR_BGR2GRAY)
     new_keypoints, new_descriptors = feature_detector.detectAndCompute(new_frame, None)
 
@@ -62,10 +85,47 @@ while(cap.isOpened()):
     current_matches = next_matches
     old_keypoints, old_descriptors = new_keypoints, new_descriptors
 
-    for current_index, keypoint_no in current_matches.iteritems():
-        keypoint = new_keypoints[current_index]
-        print image_number, keypoint_no, keypoint.pt[0], keypoint.pt[1]
+    # for current_index, keypoint_no in current_matches.iteritems():
+        # keypoint = new_keypoints[current_index]
+        # print image_number, keypoint_no, keypoint.pt[0], keypoint.pt[1]
 
     image_number += 1
+    # cv2.imshow('frame', new_frame)
+    # img = ax.imshow(new_frame)
+    # plt.draw()
+    image_frame = drawFeaturePoints(image, current_matches, new_keypoints)
 
-cap.release()
+    if plot:
+        plt.imshow(image_frame)
+        plt.show()
+
+    return image_frame
+
+def drawFeaturePoints(image, matches, keypoints):
+    for current_index, keypoint_no in matches.iteritems():
+        keypoint = keypoints[current_index]
+        cv2.circle(image, (int(keypoint.pt[0]), int(keypoint.pt[1])), 10, (255, 0, 0), 3)
+    return image
+
+def defineFlags():
+    parser = argparse.ArgumentParser(description='Feature ketpoint finder')
+    parser.add_argument('--video', action='store_true')
+    return parser.parse_args()
+
+def main():
+    args = defineFlags()
+    if args.video:
+        clip = VideoFileClip('videos/water.mp4')
+        print(clip.size)
+        output_video = 'project_video_output.mp4'
+        output_clip = clip.fl_image(processImage)
+        output_clip.write_videofile(output_video, audio=False)
+    else:
+        image1 = mpimg.imread('test_images/water1.jpg')
+        image2 = mpimg.imread('test_images/water2.jpg')
+        processImage(image1, plot=True)
+        print(isInitialized)
+        processImage(image2, plot=True)
+        print(isInitialized)
+
+main()
