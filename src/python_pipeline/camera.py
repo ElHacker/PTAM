@@ -11,9 +11,6 @@ current_matches = None
 image_number = 0
 keypoint_counter = 0
 
-#replace web address with video source of your choice, see VideoCapture docs
-# cap = cv2.VideoCapture('videos/water.mp4')
-
 def initProcessImage(image):
     global isInitialized
     global old_descriptors
@@ -50,17 +47,17 @@ def processImage(image, plot=False):
     else:
         matches = []
 
-    #each match produces:
-    #queryIdx - index of keypoint in new_keypoints
-    #trainIdx - index of keypoint in old_keypoints
+    # Each match produces:
+    # queryIdx - index of keypoint in new_keypoints
+    # trainIdx - index of keypoint in old_keypoints
 
-    #two possibilities for each match
+    # Two possibilities for each match
 
-    # (1) the match is new
+    # (1) The match is new
 
-        # meaning: we haven't tracked that keypoint before
+        # Meaning: we haven't tracked that keypoint before
 
-    # (2) the match is a continuation
+    # (2) The match is a continuation
 
         # meaning: we've tracked that keypoint before
 
@@ -94,6 +91,8 @@ def drawFeaturePoints(image, matches, keypoints):
     for current_index, keypoint_no in matches.iteritems():
         keypoint = keypoints[current_index]
         cv2.circle(image, (int(keypoint.pt[0]), int(keypoint.pt[1])), 10, (255, 0, 0), 3)
+    print("Image Size")
+    print(image.shape)
     return image
 
 def defineFlags():
@@ -107,6 +106,7 @@ def main():
         clip = VideoFileClip('videos/water.mp4')
         print(clip.size)
         output_video = 'project_video_output.mp4'
+        # NOTE: this function expects color images!
         output_clip = clip.fl_image(processImage)
         output_clip.write_videofile(output_video, audio=False)
     else:
