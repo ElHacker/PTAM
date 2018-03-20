@@ -31,7 +31,6 @@ glEnable(GL_LIGHT0)
 glEnable(GL_LIGHTING)
 glEnable(GL_COLOR_MATERIAL)
 glShadeModel(GL_SMOOTH)           # most obj files expect to be smooth-shaded
-glClearColor(0.0, 0.0, 0.0, 0.0)
 glClearDepth(1.0)
 glDepthFunc(GL_LESS)
 # Assign texture
@@ -44,7 +43,6 @@ obj = OBJ(sys.argv[1], swapyz=True)
 clock = pygame.time.Clock()
 
 glMatrixMode(GL_PROJECTION)
-glLoadIdentity()
 width, height = viewport
 gluPerspective(90.0, width/float(height), 1, 100.0)
 glEnable(GL_DEPTH_TEST)
@@ -61,8 +59,7 @@ def render_background(image):
 
     glDisable(GL_DEPTH_TEST)
     glMatrixMode(GL_PROJECTION)
-    glLoadIdentity()
-    glOrtho(0.0, 800.0, 600.0, 0.0, 0.0, 1.0)
+    glOrtho(0.0, width, height, 0.0, 0.0, 1.0)
     glEnable(GL_TEXTURE_2D)
     # Create background texture
     glBindTexture(GL_TEXTURE_2D, texture_background)
@@ -87,27 +84,24 @@ def render_model():
     glCallList(obj.gl_list)
 
 def display(image):
-    # if these lines were still there, i get a black screen
-    # glClearColor(0.0, 0.0, 0.0, 1.0)
-    # glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
+    glLoadIdentity()
     # Background render
     render_background(image)
 
     # Foreground render
 
     # Re-enable depth writes and testing
-    # glEnable(GL_DEPTH_TEST)
-    # glDepthMask(GL_TRUE)
+    glEnable(GL_DEPTH_TEST)
+    glDepthMask(GL_TRUE)
 
-    # glLoadIdentity()
-    # glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    glMatrixMode(GL_PROJECTION)
 
-    # glOrtho(0.0, 800.0, 600.0, 0.0, 0.0, 1.0)
+    gluPerspective (90, width / height, 1.0, 100.0);
+    render_model()
 
-    # render_model()
-
-    # glutSwapBuffers()
+    pygame.display.flip()
 
 
 rx, ry = (0,0)
@@ -139,10 +133,9 @@ while 1:
                 tx += i
                 ty -= j
 
+    glClearColor(0.0, 0.0, 0.0, 0.0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    glLoadIdentity()
 
     # RENDER OBJECT
     display(image1)
 
-    pygame.display.flip()
