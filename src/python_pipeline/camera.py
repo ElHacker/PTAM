@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import argparse
 from moviepy.editor import VideoFileClip
+import numpy as np
 
 feature_detector = cv2.ORB_create()
 matcher = cv2.BFMatcher_create(cv2.NORM_HAMMING, crossCheck=True)
@@ -25,7 +26,6 @@ def initProcessImage(image):
     current_matches = dict((i,i) for i in xrange(len(old_keypoints)))
 
     isInitialized = True
-    print(isInitialized)
 
 
 def processImage(image, plot=False):
@@ -37,7 +37,7 @@ def processImage(image, plot=False):
 
     if not isInitialized:
         initProcessImage(image)
-        return image
+        return (current_matches, old_keypoints)
     new_frame = image
     new_frame = cv2.cvtColor(new_frame, cv2.COLOR_BGR2GRAY)
     new_keypoints, new_descriptors = feature_detector.detectAndCompute(new_frame, None)
@@ -85,14 +85,12 @@ def processImage(image, plot=False):
         plt.imshow(image_frame)
         plt.show()
 
-    return image_frame
+    return (current_matches, new_keypoints)
 
 def drawFeaturePoints(image, matches, keypoints):
     for current_index, keypoint_no in matches.iteritems():
         keypoint = keypoints[current_index]
         cv2.circle(image, (int(keypoint.pt[0]), int(keypoint.pt[1])), 10, (255, 0, 0), 3)
-    print("Image Size")
-    print(image.shape)
     return image
 
 def defineFlags():
@@ -104,7 +102,6 @@ def main():
     args = defineFlags()
     if args.video:
         clip = VideoFileClip('videos/water.mp4')
-        print(clip.size)
         output_video = 'project_video_output.mp4'
         # NOTE: this function expects color images!
         output_clip = clip.fl_image(processImage)
@@ -117,4 +114,4 @@ def main():
         processImage(image2, plot=True)
         print(isInitialized)
 
-main()
+# main()

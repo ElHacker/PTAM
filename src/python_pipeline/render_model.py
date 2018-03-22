@@ -11,11 +11,14 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 from PIL import Image
 import matplotlib.image as mpimg
-import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 import cv2
 import moviepy.editor as mpy
+import camera
+import calibration
+import random
+import math
 
 # import pywavefront
 
@@ -28,7 +31,7 @@ hx = viewport[0]/2
 hy = viewport[1]/2
 surface = pygame.display.set_mode(viewport, OPENGL | DOUBLEBUF)
 
-glLightfv(GL_LIGHT0, GL_POSITION,  (-40, 200, 100, 0.0))
+glLightfv(GL_LIGHT0, GL_POSITION,  (-10, 100, 50, 0.0))
 glLightfv(GL_LIGHT0, GL_AMBIENT, (0.2, 0.2, 0.2, 1.0))
 glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.5, 0.5, 0.5, 1.0))
 glEnable(GL_LIGHT0)
@@ -40,6 +43,7 @@ glDepthFunc(GL_LESS)
 
 # LOAD OBJECT AFTER PYGAME INIT
 obj = None
+camera_matrix = None
 
 clock = pygame.time.Clock()
 
@@ -81,7 +85,7 @@ def render_model(tx, ty, ry, rx, zpos):
     glColorMaterial(GL_FRONT, GL_SPECULAR)
     glEnable(GL_COLOR_MATERIAL)
     glColor3f(1.0, 0.0, 0.0)
-    glTranslate(tx / 20.0, ty / 20.0, -zpos)
+    glTranslate(tx, ty, -zpos)
     glRotate(ry, 1, 0, 0)
     glRotate(rx, 0, 1, 0)
     glCallList(obj.gl_list)
@@ -101,12 +105,17 @@ def display(image, tx, ty, ry, rx, zpos):
     glLoadIdentity()
     glMatrixMode(GL_PROJECTION)
 
-    gluPerspective(90, width / float(height), 1.0, 100.0)
-    # glEnable(GL_BLEND)
-    # glBlendFunc(GL_SRC_ALPHA, GL_DST_ALPHA)
-    # glEnable(GL_COLOR_LOGIC_OP)
-    # glLogicOp(GL_EQUIV)
-    glEnable(GL_DEBUG_OUTPUT)
+    # Compute our Projection Matrix using our calibrated camera.
+    near = 1.0
+    far = 100.0
+    persp = np.zeros((4, 4))
+    persp[0, 0] = camera_matrix[0, 0] / camera_matrix[0, 2]
+    persp[1, 1] = camera_matrix[1, 1] / camera_matrix[1, 2]
+    persp[2, 2] = -(far + near) / (far - near)
+    persp[2, 3] = -(2 * far * near) / (far - near)
+    persp[3, 2] = -1
+    glMultMatrixf(persp)
+
     render_model(tx, ty, ry, rx, zpos)
 
     pygame.display.flip()
@@ -114,10 +123,25 @@ def display(image, tx, ty, ry, rx, zpos):
     string_image = pygame.image.tostring(surface, 'RGB')
     temp_surf = pygame.image.fromstring(string_image, (width, height), 'RGB' )
     im = pygame.surfarray.array3d(temp_surf)
-    print(im.shape)
     return im
 
-def make_frame(time, tx=0, ty=0, rx=90, ry=135, zpos=10):
+def normalize_coordinates(x, y, external_width=800, external_height=600):
+    internal_width = 200
+    internal_height = 100
+    x = (x * internal_width) / external_width
+    y = (y * internal_height) / external_height
+    x = x - internal_width / 2
+    y = -y + internal_height / 2
+    return (x, y)
+
+# Returns fov_y on degrees
+def camera_field_of_view_y():
+    fov_y = 2 * math.atan2(height, (2 * camera_matrix[1, 1]))
+    return math.degrees(fov_y)
+
+tracking_keypoint = cv2.KeyPoint(0, 0, 1)
+def make_frame(time, tx=0, ty=0, rx=90, ry=135, zpos=40):
+    global tracking_keypoint
     # Capture frame-by-frame
     ret, frame = cap.read()
 
@@ -126,16 +150,39 @@ def make_frame(time, tx=0, ty=0, rx=90, ry=135, zpos=10):
 
     # RENDER OBJECT
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    matches_keypoints = camera.processImage(frame)
+    tracking_keypoint = choose_keypoint(tracking_keypoint, matches_keypoints)
     if time != 0:
         tx = time * 10
         ty = time * 10
-    print("tx: %d, ty: %d, rx: %d, ry: %d, zpos: %d" % (tx, ty, rx, ry, zpos))
+    # print("keypoint %d, %d" % (tracking_keypoint.pt[0], tracking_keypoint.pt[1]))
+    # print("srf %d, %d" % (surface.get_width(), surface.get_height()))
+    tx, ty = normalize_coordinates(tracking_keypoint.pt[0], tracking_keypoint.pt[1])
+    rx = 160
+    ry = 170
+    # print("tx: %d, ty: %d, rx: %d, ry: %d, zpos: %d" % (tx, ty, rx, ry, zpos))
     return display(frame, tx, ty, rx, ry, zpos)
+
+def choose_keypoint(old_keypoint, matches_keypoints):
+    secure_random = random.SystemRandom()
+    closest_distance = float('inf')
+    closest_keypoint = old_keypoint
+    x = 0
+    y = 1
+    for current_index, keypoint_no in matches_keypoints[0].iteritems():
+        keypoint = matches_keypoints[1][current_index]
+        distance = math.sqrt(
+                (keypoint.pt[y] - old_keypoint.pt[y]) ** 2 + (keypoint.pt[x] - old_keypoint.pt[x]) ** 2 )
+        if distance < closest_distance:
+            closest_distance = distance
+            closest_keypoint = keypoint
+    return closest_keypoint
+
 
 def game():
     rx, ry = (0, 0)
     tx, ty = (0, 0)
-    zpos = 5
+    zpos = 40
     rotate = move = False
     image1 = mpimg.imread('test_images/water1.jpg')
     while 1:
@@ -170,13 +217,16 @@ def defineFlags():
     return parser.parse_args()
 
 cap = cv2.VideoCapture(0)
+# tx: -23, ty: -10, rx: 157, ry: 527, zpos: 17
 def main():
     global obj
+    global camera_matrix
 
     args = defineFlags()
+    camera_matrix = calibration.calibrate_camera()
+    print(camera_matrix)
     if not args.obj:
         raise Exception('Require .obj file path')
-    print(args.obj)
     obj = OBJ(args.obj, swapyz=True)
     if args.video:
         output_video = 'pygame_video_output.mp4'
