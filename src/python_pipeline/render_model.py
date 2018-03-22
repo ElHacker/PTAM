@@ -11,7 +11,11 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 from PIL import Image
 import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
 import cv2
+import moviepy.editor as mpy
 
 # import pywavefront
 
@@ -22,7 +26,7 @@ pygame.init()
 viewport = (800, 600)
 hx = viewport[0]/2
 hy = viewport[1]/2
-srf = pygame.display.set_mode(viewport, OPENGL | DOUBLEBUF)
+surface = pygame.display.set_mode(viewport, OPENGL | DOUBLEBUF)
 
 glLightfv(GL_LIGHT0, GL_POSITION,  (-40, 200, 100, 0.0))
 glLightfv(GL_LIGHT0, GL_AMBIENT, (0.2, 0.2, 0.2, 1.0))
@@ -35,7 +39,7 @@ glClearDepth(1.0)
 glDepthFunc(GL_LESS)
 
 # LOAD OBJECT AFTER PYGAME INIT
-obj = OBJ(sys.argv[1], swapyz=True)
+obj = None
 
 clock = pygame.time.Clock()
 
@@ -73,7 +77,7 @@ def render_background(image):
     glEnd()
     glDisable(GL_TEXTURE_2D)
 
-def render_model():
+def render_model(tx, ty, ry, rx, zpos):
     glColorMaterial(GL_FRONT, GL_SPECULAR)
     glEnable(GL_COLOR_MATERIAL)
     glColor3f(1.0, 0.0, 0.0)
@@ -83,7 +87,7 @@ def render_model():
     glCallList(obj.gl_list)
     glDisable(GL_COLOR_MATERIAL)
 
-def display(image):
+def display(image, tx, ty, ry, rx, zpos):
     glLoadIdentity()
 
     # Background render
@@ -103,42 +107,17 @@ def display(image):
     # glEnable(GL_COLOR_LOGIC_OP)
     # glLogicOp(GL_EQUIV)
     glEnable(GL_DEBUG_OUTPUT)
-    render_model()
+    render_model(tx, ty, ry, rx, zpos)
 
     pygame.display.flip()
+    # Get a numpy array from the pygame window
+    string_image = pygame.image.tostring(surface, 'RGB')
+    temp_surf = pygame.image.fromstring(string_image, (width, height), 'RGB' )
+    im = pygame.surfarray.array3d(temp_surf)
+    print(im.shape)
+    return im
 
-
-rx, ry = (0,0)
-tx, ty = (0,0)
-zpos = 5
-rotate = move = False
-image1 = mpimg.imread('test_images/water1.jpg')
-
-cap = cv2.VideoCapture(0)
-while 1:
-    clock.tick(30)
-    for e in pygame.event.get():
-        if e.type == QUIT:
-            sys.exit()
-        elif e.type == KEYDOWN and e.key == K_ESCAPE:
-            sys.exit()
-        elif e.type == MOUSEBUTTONDOWN:
-            if e.button == 4: zpos = max(1, zpos-1)
-            elif e.button == 5: zpos += 1
-            elif e.button == 1: rotate = True
-            elif e.button == 3: move = True
-        elif e.type == MOUSEBUTTONUP:
-            if e.button == 1: rotate = False
-            elif e.button == 3: move = False
-        elif e.type == MOUSEMOTION:
-            i, j = e.rel
-            if rotate:
-                rx += i
-                ry += j
-            if move:
-                tx += i
-                ty -= j
-
+def make_frame(time, tx=0, ty=0, rx=90, ry=135, zpos=10):
     # Capture frame-by-frame
     ret, frame = cap.read()
 
@@ -147,4 +126,63 @@ while 1:
 
     # RENDER OBJECT
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    display(frame)
+    if time != 0:
+        tx = time * 10
+        ty = time * 10
+    print("tx: %d, ty: %d, rx: %d, ry: %d, zpos: %d" % (tx, ty, rx, ry, zpos))
+    return display(frame, tx, ty, rx, ry, zpos)
+
+def game():
+    rx, ry = (0, 0)
+    tx, ty = (0, 0)
+    zpos = 5
+    rotate = move = False
+    image1 = mpimg.imread('test_images/water1.jpg')
+    while 1:
+        clock.tick(30)
+        for e in pygame.event.get():
+            if e.type == QUIT:
+                sys.exit()
+            elif e.type == KEYDOWN and e.key == K_ESCAPE:
+                sys.exit()
+            elif e.type == MOUSEBUTTONDOWN:
+                if e.button == 4: zpos = max(1, zpos-1)
+                elif e.button == 5: zpos += 1
+                elif e.button == 1: rotate = True
+                elif e.button == 3: move = True
+            elif e.type == MOUSEBUTTONUP:
+                if e.button == 1: rotate = False
+                elif e.button == 3: move = False
+            elif e.type == MOUSEMOTION:
+                i, j = e.rel
+                if rotate:
+                    rx += i
+                    ry += j
+                if move:
+                    tx += i
+                    ty -= j
+        make_frame(0, tx, ty, rx, ry, zpos)
+
+def defineFlags():
+    parser = argparse.ArgumentParser(description='Feature ketpoint finder')
+    parser.add_argument('--obj', help='Pass in the .obj file')
+    parser.add_argument('--video', action='store_true')
+    return parser.parse_args()
+
+cap = cv2.VideoCapture(0)
+def main():
+    global obj
+
+    args = defineFlags()
+    if not args.obj:
+        raise Exception('Require .obj file path')
+    print(args.obj)
+    obj = OBJ(args.obj, swapyz=True)
+    if args.video:
+        output_video = 'pygame_video_output.mp4'
+        output_clip = mpy.VideoClip(make_frame, duration=10) # 10 seconds
+        output_clip.write_videofile(output_video, audio=False, fps=24)
+    else:
+        game()
+
+main()
