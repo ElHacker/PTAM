@@ -34,6 +34,14 @@ Takes care of camera calibration, image keypoint detection and
 matching, OpenGL rendering of the processed image as a background
 texture, OBJ loading and rendering on the image.
 
+Some relevant files:
+- `ofast9.py`: keypoint detector using FAST
+- `BRIEF.py`: BRIEF keypoint descriptor
+- `proj_utils.py`: Miscellaneous utility functions
+- `keypoint_tracking.py`: keypoint tracking across frames
+- `ORB.py`: Running a complete  ORB pipeline
+- `render_model.py`: Renders the augmentation pipeline
+
 It supports live video from a web camera and do the full
 processing there. To run it use command:
 ```
