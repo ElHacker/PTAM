@@ -18,29 +18,29 @@ object.
 * src/java_src/ contains all the Android Java integration with the
   Camera 2 API.
 
-⋅⋅⋅Reads images from the camera on `ARCameraFragment.java` and then
+Reads images from the camera on `ARCameraFragment.java` and then
 passes it to an interface of `ARCameraImageProcessor` which is
 implemented on Python with help of `Pyjnius`.
 
 * src/main.py
 
-⋅⋅⋅Offers an implementation of `ARCameraImageProcessor` which receives
+Offers an implementation of `ARCameraImageProcessor` which receives
 each frame and then transforms it into a Numpy array. This file also
 takes care of the Android app single view lifecycle.
 
 * src/python_pipeline/ Desktop processing and augmentation pipeline
 
-⋅⋅⋅Takes care of camera calibration, image keypoint detection and
+Takes care of camera calibration, image keypoint detection and
 matching, OpenGL rendering of the processed image as a background
 texture, OBJ loading and rendering on the image.
 
-⋅⋅⋅It can also support live video from a web camera and do the full
+It supports live video from a web camera and do the full
 processing there. To run it use command:
 ```
 python render_model.py --obj CartoonRocket.obj
 ```
 
-⋅⋅⋅If you want to store it on a video file append the --video option
+If you want to store it on 10 seconds video file append the --video option
 flag
 
 ```
