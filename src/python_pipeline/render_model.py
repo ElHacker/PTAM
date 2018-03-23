@@ -15,7 +15,7 @@ import numpy as np
 import argparse
 import cv2
 import moviepy.editor as mpy
-import camera
+import image_processor
 import calibration
 import random
 import math
@@ -32,7 +32,7 @@ hy = viewport[1]/2
 surface = pygame.display.set_mode(viewport, OPENGL | DOUBLEBUF)
 
 glLightfv(GL_LIGHT0, GL_POSITION,  (-10, 100, 50, 0.0))
-glLightfv(GL_LIGHT0, GL_AMBIENT, (0.2, 0.2, 0.2, 1.0))
+glLightfv(GL_LIGHT0, GL_AMBIENT, (0.5, 0.5, 0.5, 1.0))
 glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.5, 0.5, 0.5, 1.0))
 glEnable(GL_LIGHT0)
 glEnable(GL_LIGHTING)
@@ -150,7 +150,7 @@ def make_frame(time, tx=0, ty=0, rx=90, ry=135, zpos=40):
 
     # RENDER OBJECT
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    matches_keypoints = camera.processImage(frame)
+    matches_keypoints = image_processor.processImage(frame)
     tracking_keypoint = choose_keypoint(tracking_keypoint, matches_keypoints)
     if time != 0:
         tx = time * 10

@@ -28,6 +28,8 @@ def initProcessImage(image):
     isInitialized = True
 
 
+# We got the keypoint and matching extraction code from
+# https://gist.github.com/spirulence/946a34786eb77f7edd74e9272d9eba26
 def processImage(image, plot=False):
     global old_descriptors
     global old_keypoints
@@ -90,7 +92,7 @@ def processImage(image, plot=False):
 def drawFeaturePoints(image, matches, keypoints):
     for current_index, keypoint_no in matches.iteritems():
         keypoint = keypoints[current_index]
-        cv2.circle(image, (int(keypoint.pt[0]), int(keypoint.pt[1])), 10, (255, 0, 0), 3)
+        cv2.circle(image, (int(keypoint.pt[0]), int(keypoint.pt[1])), 10, (0, 255, 0), 3)
     return image
 
 def defineFlags():
