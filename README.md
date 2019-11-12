@@ -1,15 +1,17 @@
 # Framework for an Augmented Reality Application
 
-In this work we attempt to implement a small scale real time detection,
+This work was implemented as project for Stanford class [CS231A: Computer Vision, From 3D Reconstruction to Recognition](https://web.stanford.edu/class/cs231a/), taken in Winter 2018. In this work we attempt to implement a small scale real time detection,
 mapping and tracking framework. We take real time video feed as input.
 On the first frame we do keypoint detection and evaluate descriptors for
 the keypoints. Using keypoint matching we track these points in the
 subsequent frames. New points are added as they are detected in the
 frame. Such tracking and mapping is useful for augmented reality
 applications. We also show basic image augmentation with a virtual
-object.
+object. More details can be found in the [final project report](https://github.com/beeRitu/PTAM/blob/edit-readme/Final_Report.pdf).
 
 ## Demo video
+
+[Tracking and mapping keypoints across frames](https://youtu.be/tlSAWjjdVRA) 
 
 [Augmented Video Demo](https://youtu.be/0qT57X_Es4A)
 
