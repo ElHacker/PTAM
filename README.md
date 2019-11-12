@@ -1,6 +1,6 @@
 # Framework for an Augmented Reality Application
 
-In this work we attempt to implement a small scale real time detection,
+This work was implemented as project for Stanford class CS231A: CS231A: Computer Vision, From 3D Reconstruction to Recognition taken in Winter 2018. In this work we attempt to implement a small scale real time detection,
 mapping and tracking framework. We take real time video feed as input.
 On the first frame we do keypoint detection and evaluate descriptors for
 the keypoints. Using keypoint matching we track these points in the
