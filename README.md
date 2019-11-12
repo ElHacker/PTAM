@@ -7,7 +7,7 @@ the keypoints. Using keypoint matching we track these points in the
 subsequent frames. New points are added as they are detected in the
 frame. Such tracking and mapping is useful for augmented reality
 applications. We also show basic image augmentation with a virtual
-object.
+object. More details can be found in the [final project report](https://github.com/beeRitu/PTAM/blob/edit-readme/Final_Report.pdf).
 
 ## Demo video
 
