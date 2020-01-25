@@ -44,7 +44,7 @@ Some relevant files for feature extraction and key point detection are:
 - `ORB.py`: Running a complete  ORB pipeline
 - `render_model.py`: Renders the augmentation pipeline
 
-ORB.ipynb ipython notebook can be used to follow the step by step output of the ORB keypoint feature detection and matching algorithm implementation. Notebook reads the images stored in folder ./data and generates transformed corresponding image by applying normalization, rotation, affine transformation and warping. These two corresponding images are used as an example f for key point detection and matching. 
+`ORB.ipynb` ipython notebook can be used to follow the step by step output of the ORB keypoint feature detection and matching algorithm implementation. Notebook reads the images stored in folder `./data` and generates transformed corresponding image by applying normalization, rotation, affine transformation and warping. These two corresponding images are used as an example of for key point detection and matching. 
 
 It supports live video from a web camera and do the full
 processing there. To run it use command:
