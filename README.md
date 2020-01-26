@@ -53,10 +53,10 @@ Some relevant files for feature extraction and key point detection are:
 
 ## Running the pipeline for keypoint detection and matching
 * Download the following files in the run directory:
-  - ORB.ipynb
-  - ofast9.py
-  - BRIEF.py
-  - proj_utils.py
+  - `ORB.ipynb`
+  - `ofast9.py`
+  - `BRIEF.py`
+  - `proj_utils.py`
 * Place the image for generating corresponding transformed image and creating keypoints with matching across the two under `./data`
 * Add the image filenames in the list parsed by first for loop under the `if __name__ == '__main__':`. The current code uses 1 filename in the list as `['astronaut']`
 * Run ORB.ipynb 
