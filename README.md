@@ -65,7 +65,7 @@ Some relevant files for feature extraction and key point detection are:
 - Calls `BRIEF` from `BRIEF.py` for keypoint feature descriptor.
 - Uses hamming distance for descriptor matching
 
-### Running the pipeline for keypoint detection and matching
+### Running the pipeline for keypoint detection and matching for images
 * Download the following files in the run directory:
   - `ORB.ipynb`
   - `ofast9.py`
@@ -75,4 +75,8 @@ Some relevant files for feature extraction and key point detection are:
 * Add the image filenames in the list parsed by first for loop under the `if __name__ == '__main__':`. The current code uses 1 filename in the list as `['astronaut']`
 * Run ORB.ipynb 
 
-
+### Running the pipeline for keypoint detection and matching across frames of a video
+* Download the file `keypoint_tracking.py` in the run directory
+* Put the video in .mp4 format in the run directory. For faster run time, video compression is recommended.
+* In the function definition `def main():` add the filename `clip = VideoFileClip('<filename>')`
+* Run the script with `python keypoint_tracking.py --video`
