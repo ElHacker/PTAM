@@ -65,7 +65,7 @@ Some relevant files for feature extraction and key point detection are:
 - Calls `BRIEF` from `BRIEF.py` for keypoint feature descriptor.
 - Uses hamming distance for descriptor matching
 
-## Running the pipeline for keypoint detection and matching
+### Running the pipeline for keypoint detection and matching
 * Download the following files in the run directory:
   - `ORB.ipynb`
   - `ofast9.py`
