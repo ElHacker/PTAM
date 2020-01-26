@@ -17,6 +17,12 @@ object. More details can be found in the [final project report](https://github.c
 
 ## Code File Structure
 
+* src/python_pipeline/ Desktop processing and augmentation pipeline
+
+Takes care of camera calibration, image keypoint detection and
+matching, OpenGL rendering of the processed image as a background
+texture, OBJ loading and rendering on the image.
+
 * src/java_src/ contains all the Android Java integration with the
   Camera 2 API.
 
@@ -30,11 +36,19 @@ Offers an implementation of `ARCameraImageProcessor` which receives
 each frame and then transforms it into a Numpy array. This file also
 takes care of the Android app single view lifecycle.
 
-* src/python_pipeline/ Desktop processing and augmentation pipeline
+It supports live video from a web camera and do the full
+processing there. To run it use command:
+```
+python render_model.py --obj CartoonRocket.obj
+```
 
-Takes care of camera calibration, image keypoint detection and
-matching, OpenGL rendering of the processed image as a background
-texture, OBJ loading and rendering on the image.
+If you want to store it on 10 seconds video file append the --video option
+flag
+
+```
+python render_model.py --obj CartoonRocket.obj --video
+```
+## Python implementation of keypoint detection and matching
 
 Some relevant files for feature extraction and key point detection are:
 - `ofast9.py`: keypoint detector using FAST algorithm, further filtered using Harris corner detection. As ORB uses oriented FAST algorithm, an orientation is calculated corresponding to each keypoint.
@@ -61,15 +75,4 @@ Some relevant files for feature extraction and key point detection are:
 * Add the image filenames in the list parsed by first for loop under the `if __name__ == '__main__':`. The current code uses 1 filename in the list as `['astronaut']`
 * Run ORB.ipynb 
 
-It supports live video from a web camera and do the full
-processing there. To run it use command:
-```
-python render_model.py --obj CartoonRocket.obj
-```
 
-If you want to store it on 10 seconds video file append the --video option
-flag
-
-```
-python render_model.py --obj CartoonRocket.obj --video
-```
