@@ -44,7 +44,9 @@ Some relevant files for feature extraction and key point detection are:
 - `ORB.py`: Running a complete  ORB pipeline
 - `render_model.py`: Renders the augmentation pipeline
 
-`ORB.ipynb` ipython notebook can be used to follow the step by step output of the ORB keypoint feature detection and matching algorithm implementation. Notebook reads the images stored in folder `./data` and generates transformed corresponding image by applying normalization, rotation, affine transformation and warping. These two corresponding images are used as an example of for key point detection and matching. 
+`ORB.ipynb` ipython notebook can be used to follow the step by step output of the ORB keypoint feature detection and matching algorithm implementation. Notebook reads the images stored in folder `./data` and generates 3 transformed corresponding images by applying normalization (1st image), rotation (2nd image), affine transformation followed by warping (3rd image). Original image and any of the three corresponding generated images are used for testing of for key point detection and matching. This notebook uses the following:
+- Calls `FAST9` function implemented in `ofast9.py` for keypoint detection. FAST stands for (Features from Accelerated Segment Test) algorithm and is used for real time applications such as SLAM (Simultaneous Localization and Mapping). FAST keyppoint algorithm is very sensitive to edges and detects many keypoints along the edges in the image.
+- Calls `HARRIS` function from `ofast9.py` to filter out keypoints detected using FAST algorithms to those having maximum corner like properties. 
 
 It supports live video from a web camera and do the full
 processing there. To run it use command:
